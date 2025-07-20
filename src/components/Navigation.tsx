@@ -20,11 +20,13 @@ const Navigation = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center">
-              <Bot className="w-5 h-5 text-primary-foreground" />
-            </div>
+            <img
+              src="/banner.png"
+              alt="Sense AIO Logo"
+              className="w-10 h-10 object-contain"
+            />
             <h1 className="text-xl font-display font-bold neon-text">
-              Crypto Coach
+              Sense AIO
             </h1>
           </div>
 

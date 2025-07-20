@@ -7,6 +7,7 @@ import { AICoachPanel } from '../components/AICoachPanel';
 import PortfolioChart from '../components/PortfolioChart';
 import TechnicalIndicators from '../components/TechnicalIndicators';
 import AIInsights from '../components/AIInsights';
+import { fetchLivePrices, mapToCoingeckoId } from "@/lib/fetchPrices";
 
 interface CryptoAsset {
   id: string;
@@ -26,20 +27,36 @@ const Dashboard = () => {
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<CryptoAsset | null>(null);
 
-  // Load assets from localStorage on mount
   useEffect(() => {
-    const savedAssets = localStorage.getItem('cryptoAssets');
-    if (savedAssets) {
-      const parsedAssets = JSON.parse(savedAssets);
-      setAssets(parsedAssets);
-    }
-  }, []);
+    const loadLivePrices = async () => {
+      try {
+        const symbols = assets.map((a) => a.symbol);
+        const liveData = await fetchLivePrices(symbols, "usd");
+        const updatedAssets = assets.map((asset) => {
+          const id = mapToCoingeckoId(asset.symbol);
+          const live = liveData[id];
+          const currentPrice = live?.usd || asset.currentPrice;
+          return {
+            ...asset,
+            currentPrice,
+            priceChange24h: live?.usd_24h_change || 0,
+            totalValue: asset.quantity * currentPrice,
+          };
+        });
 
-  // Calculate total portfolio value
-  useEffect(() => {
-    const total = assets.reduce((sum, asset) => sum + asset.totalValue, 0);
-    setTotalPortfolioValue(total);
+        setAssets(updatedAssets);
+        const total = updatedAssets.reduce((sum, a) => sum + a.totalValue, 0);
+        setTotalPortfolioValue(total);
+      } catch (err) {
+        console.error("Failed to fetch live prices:", err);
+      }
+    };
+
+    if (assets.length > 0) {
+      loadLivePrices();
+    }
   }, [assets]);
+
 
   const handleAddAsset = (newAsset: CryptoAsset) => {
     const updatedAssets = [...assets, newAsset];
@@ -98,7 +115,7 @@ const Dashboard = () => {
             Portfolio Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
-            Track your crypto investments with AI-powered insights
+            Manage, track, and analyze your crypto like a Sensei. All In One.
           </p>
         </div>
         <div className="flex gap-3">
@@ -199,7 +216,11 @@ const Dashboard = () => {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
                       <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center">
-                        <span className="font-bold text-primary-foreground text-lg">{asset.symbol.charAt(0)}</span>
+                        <img
+                          src={`https://cryptoicon-api.pages.dev/api/icon/${asset.symbol.toLowerCase()}`}
+                          alt={asset.symbol}
+                          className="w-8 h-8 rounded-full bg-muted"
+                        />
                       </div>
                       <div>
                         <h3 className="font-semibold text-foreground text-lg">{asset.symbol}</h3>

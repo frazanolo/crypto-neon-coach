@@ -62,8 +62,8 @@ export default {
 				}
 			},
 			fontFamily: {
-				display: ['var(--font-display)'],
-				body: ['var(--font-body)']
+			display: ['Orbitron', 'sans-serif'],
+			body: ['Rajdhani', 'sans-serif']
 			},
 			backgroundImage: {
 				'gradient-primary': 'var(--gradient-primary)',
