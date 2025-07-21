@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Bot, BarChart3, Activity } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Bot, BarChart3, Activity, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { AddAssetModal } from '../components/AddAssetModal';
+import { EnhancedAddAssetModal } from '../components/EnhancedAddAssetModal';
 import { AICoachPanel } from '../components/AICoachPanel';
 import PortfolioChart from '../components/PortfolioChart';
-import TechnicalIndicators from '../components/TechnicalIndicators';
-import AIInsights from '../components/AIInsights';
-import { fetchLivePrices, mapToCoingeckoId } from "@/lib/fetchPrices";
+import EnhancedTechnicalIndicators from '../components/EnhancedTechnicalIndicators';
+import EnhancedAIInsights from '../components/EnhancedAIInsights';
+import { CurrencySelector } from '../components/CurrencySelector';
+import { usePortfolioData } from '../hooks/usePortfolioData';
 
 interface CryptoAsset {
   id: string;
@@ -21,11 +22,26 @@ interface CryptoAsset {
 }
 
 const Dashboard = () => {
-  const [assets, setAssets] = useState<CryptoAsset[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [totalPortfolioValue, setTotalPortfolioValue] = useState(0);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<CryptoAsset | null>(null);
+  const [currency, setCurrency] = useState(() => 
+    localStorage.getItem('selectedCurrency') || 'usd'
+  );
+  
+  const {
+    assets,
+    totalValue: totalPortfolioValue,
+    totalChange: portfolioChange,
+    changePercent: portfolioChangePercent,
+    historicalData,
+    isLoading,
+    error,
+    addAsset,
+    removeAsset,
+    updateLivePrices,
+    refreshData
+  } = usePortfolioData(currency);
 
   useEffect(() => {
     const loadLivePrices = async () => {
@@ -119,6 +135,19 @@ const Dashboard = () => {
           </p>
         </div>
         <div className="flex gap-3">
+          <CurrencySelector 
+            selectedCurrency={currency}
+            onCurrencyChange={setCurrency}
+          />
+          <Button
+            onClick={refreshData}
+            variant="outline"
+            size="sm"
+            className="border-border/50"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
           <Button
             onClick={() => setShowAIPanel(true)}
             variant="secondary"
@@ -190,7 +219,7 @@ const Dashboard = () => {
       {/* Portfolio Chart */}
       {assets.length > 0 && (
         <PortfolioChart
-          data={generateChartData()}
+          data={historicalData}
           totalValue={totalPortfolioValue}
           totalChange={portfolioChange}
           changePercent={portfolioChangePercent}
@@ -282,15 +311,16 @@ const Dashboard = () => {
                 {selectedAsset.symbol} Technical Analysis
               </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <TechnicalIndicators
+                <EnhancedTechnicalIndicators
                   symbol={selectedAsset.symbol}
                   price={selectedAsset.currentPrice}
-                  indicators={generateMockIndicators(selectedAsset)}
+                  marketData={selectedAsset.marketData}
+                  currency={currency}
                 />
-                <AIInsights
+                <EnhancedAIInsights
                   symbol={selectedAsset.symbol}
                   price={selectedAsset.currentPrice}
-                  indicators={generateMockIndicators(selectedAsset)}
+                  marketData={selectedAsset.marketData}
                 />
               </div>
             </div>
@@ -316,10 +346,11 @@ const Dashboard = () => {
       )}
 
       {/* Modals */}
-      <AddAssetModal
+      <EnhancedAddAssetModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onAddAsset={handleAddAsset}
+        onAddAsset={addAsset}
+        currency={currency}
       />
       
       <AICoachPanel
