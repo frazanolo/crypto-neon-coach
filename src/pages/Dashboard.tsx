@@ -19,6 +19,7 @@ interface CryptoAsset {
   priceChange24h: number;
   totalValue: number;
   addedDate: string;
+  marketData?: any;
 }
 
 const Dashboard = () => {
@@ -43,51 +44,6 @@ const Dashboard = () => {
     refreshData
   } = usePortfolioData(currency);
 
-  useEffect(() => {
-    const loadLivePrices = async () => {
-      try {
-        const symbols = assets.map((a) => a.symbol);
-        const liveData = await fetchLivePrices(symbols, "usd");
-        const updatedAssets = assets.map((asset) => {
-          const id = mapToCoingeckoId(asset.symbol);
-          const live = liveData[id];
-          const currentPrice = live?.usd || asset.currentPrice;
-          return {
-            ...asset,
-            currentPrice,
-            priceChange24h: live?.usd_24h_change || 0,
-            totalValue: asset.quantity * currentPrice,
-          };
-        });
-
-        setAssets(updatedAssets);
-        const total = updatedAssets.reduce((sum, a) => sum + a.totalValue, 0);
-        setTotalPortfolioValue(total);
-      } catch (err) {
-        console.error("Failed to fetch live prices:", err);
-      }
-    };
-
-    if (assets.length > 0) {
-      loadLivePrices();
-    }
-  }, [assets]);
-
-
-  const handleAddAsset = (newAsset: CryptoAsset) => {
-    const updatedAssets = [...assets, newAsset];
-    setAssets(updatedAssets);
-    localStorage.setItem('cryptoAssets', JSON.stringify(updatedAssets));
-  };
-
-  const portfolioChange = assets.reduce((sum, asset) => {
-    const changeValue = (asset.priceChange24h / 100) * asset.totalValue;
-    return sum + changeValue;
-  }, 0);
-
-  const portfolioChangePercent = totalPortfolioValue > 0 
-    ? (portfolioChange / (totalPortfolioValue - portfolioChange)) * 100 
-    : 0;
 
   // Generate mock portfolio chart data
   const generateChartData = () => {
