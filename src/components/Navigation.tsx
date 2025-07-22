@@ -1,9 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, User, Settings, History, Bot } from 'lucide-react';
+import { Home, User, Settings, History, LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Navigation = () => {
   const location = useLocation();
+  const { user, signOut } = useAuth();
   
   const isActive = (path: string) => location.pathname === path;
   
@@ -26,7 +29,7 @@ const Navigation = () => {
               className="w-10 h-10 object-contain"
             />
             <h1 className="text-xl font-display font-bold neon-text">
-              Sense AIO
+              CryptoSensei
             </h1>
           </div>
 
@@ -46,6 +49,22 @@ const Navigation = () => {
                 <span className="font-medium">{item.label}</span>
               </Link>
             ))}
+            
+            {/* User Menu */}
+            <div className="flex items-center space-x-2 ml-4 pl-4 border-l border-border/30">
+              <span className="text-sm text-muted-foreground">
+                {user?.email}
+              </span>
+              <Button
+                onClick={signOut}
+                variant="outline"
+                size="sm"
+                className="border-border/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
           </div>
 
           {/* Mobile Menu */}
@@ -63,6 +82,14 @@ const Navigation = () => {
                 <item.icon className="w-5 h-5" />
               </Link>
             ))}
+            <Button
+              onClick={signOut}
+              variant="outline"
+              size="sm"
+              className="border-border/50 p-2"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Bot, BarChart3, Activity, RefreshCw } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Bot, BarChart3, Activity, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EnhancedAddAssetModal } from '../components/EnhancedAddAssetModal';
@@ -8,7 +8,7 @@ import PortfolioChart from '../components/PortfolioChart';
 import EnhancedTechnicalIndicators from '../components/EnhancedTechnicalIndicators';
 import EnhancedAIInsights from '../components/EnhancedAIInsights';
 import { CurrencySelector } from '../components/CurrencySelector';
-import { usePortfolioData } from '../hooks/usePortfolioData';
+import { useSupabasePortfolio } from '../hooks/useSupabasePortfolio';
 
 interface CryptoAsset {
   id: string;
@@ -42,7 +42,7 @@ const Dashboard = () => {
     removeAsset,
     updateLivePrices,
     refreshData
-  } = usePortfolioData(currency);
+  } = useSupabasePortfolio(currency);
 
 
   // Generate mock portfolio chart data
@@ -236,15 +236,28 @@ const Dashboard = () => {
                     </div>
                     
                     {/* Technical indicators preview */}
-                    <div className="flex gap-2 pt-2">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Activity className="w-3 h-3" />
-                        <span>RSI: {generateMockIndicators(asset).rsi.toFixed(0)}</span>
+                    <div className="flex justify-between items-center pt-2">
+                      <div className="flex gap-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Activity className="w-3 h-3" />
+                          <span>RSI: {generateMockIndicators(asset).rsi.toFixed(0)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <BarChart3 className="w-3 h-3" />
+                          <span>Vol: ${(generateMockIndicators(asset).volume24h / 1e6).toFixed(0)}M</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <BarChart3 className="w-3 h-3" />
-                        <span>Vol: ${(generateMockIndicators(asset).volume24h / 1e6).toFixed(0)}M</span>
-                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeAsset(asset.id);
+                        }}
+                        className="border-destructive/50 text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
                     </div>
                   </div>
 
