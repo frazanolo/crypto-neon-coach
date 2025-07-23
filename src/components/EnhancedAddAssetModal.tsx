@@ -22,7 +22,12 @@ interface CryptoAsset {
 interface EnhancedAddAssetModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddAsset: (asset: CryptoAsset) => void;
+  onAddAsset: (asset: {
+    symbol: string;
+    name: string;
+    quantity: number;
+    currentPrice: number;
+  }) => void;
   currency: string;
 }
 
@@ -108,18 +113,14 @@ export const EnhancedAddAssetModal: React.FC<EnhancedAddAssetModalProps> = ({
       return;
     }
 
-    const newAsset: CryptoAsset = {
-      id: `${selectedCrypto.id}-${Date.now()}`,
+    const newAssetData = {
       symbol: selectedCrypto.symbol.toUpperCase(),
       name: selectedCrypto.name,
       quantity: parseFloat(quantity),
       currentPrice: selectedCrypto.current_price,
-      priceChange24h: selectedCrypto.price_change_percentage_24h || 0,
-      totalValue: parseFloat(quantity) * selectedCrypto.current_price,
-      addedDate: new Date().toISOString().split('T')[0]
     };
 
-    onAddAsset(newAsset);
+    onAddAsset(newAssetData);
     handleClose();
     toast.success(`Added ${quantity} ${selectedCrypto.symbol.toUpperCase()} to your portfolio!`);
   };
@@ -190,7 +191,7 @@ export const EnhancedAddAssetModal: React.FC<EnhancedAddAssetModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl glass-card border border-border/50 max-h-[80vh] overflow-hidden">
+      <DialogContent className="sm:max-w-2xl glass-card border border-border/50 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-display font-bold neon-text">
             Add Crypto Asset
@@ -217,7 +218,7 @@ export const EnhancedAddAssetModal: React.FC<EnhancedAddAssetModalProps> = ({
             <h3 className="text-sm font-medium text-muted-foreground">
               {searchResults.length > 0 ? 'Search Results' : 'Trending Cryptocurrencies'}
             </h3>
-            <div className="max-h-60 overflow-y-auto space-y-2">
+            <div className="max-h-48 overflow-y-auto space-y-2">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin text-primary" />

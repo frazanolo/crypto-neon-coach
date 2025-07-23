@@ -265,22 +265,49 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
     }
   };
 
-  // Generate mock historical data
+  // Generate realistic historical data based on current portfolio
   const generateHistoricalData = (assets: CryptoAsset[]) => {
+    if (assets.length === 0) {
+      setHistoricalData([]);
+      return;
+    }
+
     const data: HistoricalDataPoint[] = [];
     const today = new Date();
-    const totalValue = assets.reduce((sum, asset) => sum + asset.totalValue, 0);
+    const currentTotalValue = assets.reduce((sum, asset) => sum + asset.totalValue, 0);
 
+    // Generate 30 days of historical data
     for (let i = 29; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const randomChange = (Math.random() - 0.5) * 0.08; // ±4% daily change
-      const value = totalValue * (1 + randomChange * (i / 30));
+      
+      // Create more realistic price movements
+      let dailyPortfolioValue = 0;
+      
+      assets.forEach(asset => {
+        // Simulate historical price with some volatility
+        const daysBack = i;
+        const volatility = Math.sin((daysBack / 30) * Math.PI * 2) * 0.1; // Sine wave for realistic movement
+        const randomFactor = (Math.random() - 0.5) * 0.05; // Small random variation
+        const priceMultiplier = 1 + volatility + randomFactor;
+        
+        // Calculate historical price
+        const historicalPrice = asset.currentPrice * priceMultiplier;
+        const historicalValue = asset.quantity * historicalPrice;
+        dailyPortfolioValue += historicalValue;
+      });
+
+      // Ensure we don't have unrealistic values
+      dailyPortfolioValue = Math.max(dailyPortfolioValue, currentTotalValue * 0.3);
+      
+      // Calculate daily change
+      const previousValue = i === 29 ? dailyPortfolioValue : data[data.length - 1]?.value || dailyPortfolioValue;
+      const change = i === 29 ? 0 : ((dailyPortfolioValue - previousValue) / previousValue) * 100;
       
       data.push({
         date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        value: Math.max(value, totalValue * 0.5),
-        change: randomChange * 100
+        value: dailyPortfolioValue,
+        change: change
       });
     }
     

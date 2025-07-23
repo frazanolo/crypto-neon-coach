@@ -5,10 +5,9 @@ import { Card } from '@/components/ui/card';
 import { EnhancedAddAssetModal } from '../components/EnhancedAddAssetModal';
 import { AICoachPanel } from '../components/AICoachPanel';
 import PortfolioChart from '../components/PortfolioChart';
-import EnhancedTechnicalIndicators from '../components/EnhancedTechnicalIndicators';
-import EnhancedAIInsights from '../components/EnhancedAIInsights';
 import { CurrencySelector } from '../components/CurrencySelector';
 import { useSupabasePortfolio } from '../hooks/useSupabasePortfolio';
+import AIMarketAnalysis from '../components/AIMarketAnalysis';
 
 interface CryptoAsset {
   id: string;
@@ -45,37 +44,11 @@ const Dashboard = () => {
   } = useSupabasePortfolio(currency);
 
 
-  // Generate mock portfolio chart data
-  const generateChartData = () => {
-    const data = [];
-    const today = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const baseValue = totalPortfolioValue || 10000;
-      const randomChange = (Math.random() - 0.5) * 0.1; // ±5% daily change
-      const value = baseValue * (1 + randomChange * (i / 30));
-      data.push({
-        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        value: Math.max(value, 1000),
-        change: randomChange * 100
-      });
-    }
-    return data;
-  };
 
-  // Generate mock technical indicators
-  const generateMockIndicators = (asset: CryptoAsset) => ({
-    rsi: Math.random() * 100,
-    marketCap: Math.random() * 100000000000, // Random market cap up to 100B
+  // Generate quick technical indicators for preview
+  const generateQuickIndicators = (asset: CryptoAsset) => ({
+    rsi: 30 + (Math.random() * 40), // Keep RSI in reasonable range
     volume24h: Math.random() * 1000000000, // Random volume up to 1B
-    support: asset.currentPrice * (0.85 + Math.random() * 0.1),
-    resistance: asset.currentPrice * (1.05 + Math.random() * 0.1),
-    fibonacciLevels: [
-      { level: 0.236, price: asset.currentPrice * 1.05 },
-      { level: 0.382, price: asset.currentPrice * 1.08 },
-      { level: 0.618, price: asset.currentPrice * 1.12 }
-    ]
   });
 
   return (
@@ -240,11 +213,11 @@ const Dashboard = () => {
                       <div className="flex gap-2">
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Activity className="w-3 h-3" />
-                          <span>RSI: {generateMockIndicators(asset).rsi.toFixed(0)}</span>
+                          <span>RSI: {generateQuickIndicators(asset).rsi.toFixed(0)}</span>
                         </div>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <BarChart3 className="w-3 h-3" />
-                          <span>Vol: ${(generateMockIndicators(asset).volume24h / 1e6).toFixed(0)}M</span>
+                          <span>Vol: ${(generateQuickIndicators(asset).volume24h / 1e6).toFixed(0)}M</span>
                         </div>
                       </div>
                       <Button
@@ -273,27 +246,13 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Selected Asset Analysis */}
-          {selectedAsset && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-display font-bold neon-text">
-                {selectedAsset.symbol} Technical Analysis
-              </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <EnhancedTechnicalIndicators
-                  symbol={selectedAsset.symbol}
-                  price={selectedAsset.currentPrice}
-                  marketData={selectedAsset.marketData}
-                  currency={currency}
-                />
-                <EnhancedAIInsights
-                  symbol={selectedAsset.symbol}
-                  price={selectedAsset.currentPrice}
-                  marketData={selectedAsset.marketData}
-                />
-              </div>
-            </div>
-          )}
+          {/* AI Market Analysis */}
+          <AIMarketAnalysis
+            selectedAsset={selectedAsset}
+            portfolioAssets={assets}
+            totalValue={totalPortfolioValue}
+            currency={currency}
+          />
         </div>
       ) : (
         <Card className="glass-card p-12 text-center">
