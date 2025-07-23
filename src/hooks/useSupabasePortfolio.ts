@@ -202,27 +202,59 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
       const portfolioId = portfolios?.[0]?.id;
       if (!portfolioId) throw new Error('Portfolio not found');
 
-      // Insert new asset
-      const { data: newAsset, error: insertError } = await supabase
+      // Check if asset already exists
+      const { data: existingAsset, error: checkError } = await supabase
         .from('portfolio_assets')
-        .insert([{
-          portfolio_id: portfolioId,
-          symbol: newAssetData.symbol.toUpperCase(),
-          name: newAssetData.name,
-          quantity: newAssetData.quantity,
-          purchase_price: newAssetData.currentPrice,
-          current_price: newAssetData.currentPrice,
-          total_value: newAssetData.quantity * newAssetData.currentPrice,
-        }])
-        .select()
+        .select('*')
+        .eq('portfolio_id', portfolioId)
+        .eq('symbol', newAssetData.symbol.toUpperCase())
         .single();
 
-      if (insertError) throw insertError;
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
 
-      toast({
-        title: "Asset Added",
-        description: `${newAssetData.symbol.toUpperCase()} has been added to your portfolio.`,
-      });
+      if (existingAsset) {
+        // Update existing asset quantity
+        const newQuantity = parseFloat(existingAsset.quantity.toString()) + newAssetData.quantity;
+        const newTotalValue = newQuantity * newAssetData.currentPrice;
+        
+        const { error: updateError } = await supabase
+          .from('portfolio_assets')
+          .update({
+            quantity: newQuantity,
+            current_price: newAssetData.currentPrice,
+            total_value: newTotalValue,
+          })
+          .eq('id', existingAsset.id);
+
+        if (updateError) throw updateError;
+
+        toast({
+          title: "Asset Updated",
+          description: `Added ${newAssetData.quantity} more ${newAssetData.symbol.toUpperCase()} to your portfolio.`,
+        });
+      } else {
+        // Insert new asset
+        const { error: insertError } = await supabase
+          .from('portfolio_assets')
+          .insert([{
+            portfolio_id: portfolioId,
+            symbol: newAssetData.symbol.toUpperCase(),
+            name: newAssetData.name,
+            quantity: newAssetData.quantity,
+            purchase_price: newAssetData.currentPrice,
+            current_price: newAssetData.currentPrice,
+            total_value: newAssetData.quantity * newAssetData.currentPrice,
+          }]);
+
+        if (insertError) throw insertError;
+
+        toast({
+          title: "Asset Added",
+          description: `${newAssetData.symbol.toUpperCase()} has been added to your portfolio.`,
+        });
+      }
 
       // Reload portfolio
       await loadPortfolio();
