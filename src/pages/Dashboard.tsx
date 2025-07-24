@@ -54,7 +54,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold neon-text">
             Portfolio Dashboard
@@ -63,7 +63,7 @@ const Dashboard = () => {
             Manage, track, and analyze your crypto like a Sensei. All In One.
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <CurrencySelector 
             selectedCurrency={currency}
             onCurrencyChange={setCurrency}

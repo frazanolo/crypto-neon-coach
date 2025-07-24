@@ -1,51 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { History as HistoryIcon, Calendar, TrendingUp, Download, Filter } from 'lucide-react';
+import { History as HistoryIcon, Calendar, TrendingUp, Download, Filter, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-
-interface AssetHistory {
-  id: string;
-  symbol: string;
-  name: string;
-  quantity: number;
-  addedDate: string;
-  addedTime: string;
-  priceAtPurchase?: number;
-}
+import { useSupabaseHistory, AssetHistory } from '@/hooks/useSupabaseHistory';
 
 const History = () => {
-  const [history, setHistory] = useState<AssetHistory[]>([]);
+  const { history, isLoading, error, refreshHistory } = useSupabaseHistory();
   const [filteredHistory, setFilteredHistory] = useState<AssetHistory[]>([]);
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
-
-  useEffect(() => {
-    // Load portfolio history from localStorage
-    const savedAssets = localStorage.getItem('cryptoAssets');
-    const savedHistory = localStorage.getItem('portfolioHistory');
-    
-    let historyData: AssetHistory[] = [];
-    
-    if (savedHistory) {
-      historyData = JSON.parse(savedHistory);
-    } else if (savedAssets) {
-      // Convert current assets to history format if no history exists
-      const assets = JSON.parse(savedAssets);
-      historyData = assets.map((asset: any) => ({
-        id: asset.id,
-        symbol: asset.symbol,
-        name: asset.name,
-        quantity: asset.quantity,
-        addedDate: asset.addedDate || new Date().toISOString().split('T')[0],
-        addedTime: asset.addedTime || new Date().toLocaleTimeString(),
-        priceAtPurchase: asset.priceAtPurchase
-      }));
-      localStorage.setItem('portfolioHistory', JSON.stringify(historyData));
-    }
-    
-    setHistory(historyData.sort((a, b) => new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime()));
-  }, []);
 
   useEffect(() => {
     if (selectedFilter === 'all') {
@@ -90,6 +54,16 @@ const History = () => {
           </p>
         </div>
         <div className="flex gap-3">
+          <Button
+            onClick={refreshHistory}
+            variant="outline"
+            size="sm"
+            className="border-border/50"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <Button
             onClick={exportToPDF}
             variant="outline"

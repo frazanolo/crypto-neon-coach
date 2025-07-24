@@ -69,6 +69,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signOut = async () => {
     try {
+      // Clear all localStorage data
+      localStorage.clear();
+      
       const { error } = await supabase.auth.signOut();
       if (error) {
         toast({
@@ -76,6 +79,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           description: error.message,
           variant: "destructive",
         });
+      } else {
+        // Force clear the state after successful logout
+        setUser(null);
+        setSession(null);
       }
     } catch (error) {
       toast({

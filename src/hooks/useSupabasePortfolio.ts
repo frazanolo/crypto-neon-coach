@@ -256,8 +256,10 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
         });
       }
 
-      // Reload portfolio
-      await loadPortfolio();
+      // Reload portfolio immediately to show new data
+      setTimeout(() => {
+        loadPortfolio();
+      }, 100);
     } catch (error: any) {
       console.error('Error adding asset:', error);
       toast({
@@ -285,8 +287,10 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
         description: "Asset has been removed from your portfolio.",
       });
 
-      // Reload portfolio
-      await loadPortfolio();
+      // Reload portfolio immediately to show updated data
+      setTimeout(() => {
+        loadPortfolio();
+      }, 100);
     } catch (error: any) {
       console.error('Error removing asset:', error);
       toast({
@@ -355,6 +359,17 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
   useEffect(() => {
     if (user) {
       loadPortfolio();
+    } else {
+      // Clear portfolio data when user logs out
+      setPortfolioData({
+        assets: [],
+        totalValue: 0,
+        totalChange: 0,
+        changePercent: 0,
+        isLoading: false,
+        error: null,
+      });
+      setHistoricalData([]);
     }
   }, [user, currency]);
 
