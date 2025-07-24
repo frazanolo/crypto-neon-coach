@@ -43,7 +43,7 @@ export interface TechnicalIndicators {
 }
 
 class CryptoAPI {
-  private baseUrl = 'https://api.coingecko.com/api/v3';
+  private baseUrl = '/api-coingecko/api/v3';
   private cache = new Map<string, { data: any; timestamp: number }>();
   private cacheTimeout = 60000; // 1 minute
 
@@ -127,15 +127,49 @@ class CryptoAPI {
   ): Promise<Record<string, any>> {
     if (coinIds.length === 0) return {};
     
+    // Map symbols to coingecko IDs
+    const mappedIds = coinIds.map(id => this.mapSymbolToId(id));
+    
     const params = new URLSearchParams({
-      ids: coinIds.join(','),
+      ids: mappedIds.join(','),
       vs_currencies: vsCurrency,
       include_24hr_change: includeChange.toString(),
       include_24hr_vol: 'true',
       include_market_cap: 'true'
     });
 
-    return this.fetchWithCache(`/simple/price?${params}`);
+    try {
+      const data = await this.fetchWithCache(`/simple/price?${params}`);
+      
+      // Convert the response to use original symbols as keys
+      const result: Record<string, any> = {};
+      coinIds.forEach((originalSymbol, index) => {
+        const mappedId = mappedIds[index];
+        if (data[mappedId]) {
+          result[originalSymbol.toLowerCase()] = {
+            price: data[mappedId][vsCurrency],
+            change_24h: data[mappedId][`${vsCurrency}_24h_change`] || 0,
+            volume_24h: data[mappedId][`${vsCurrency}_24h_vol`] || 0,
+            market_cap: data[mappedId][`${vsCurrency}_market_cap`] || 0
+          };
+        }
+      });
+      
+      return result;
+    } catch (error) {
+      console.error('Failed to fetch live prices:', error);
+      // Return fallback data with current symbols
+      const fallback: Record<string, any> = {};
+      coinIds.forEach(symbol => {
+        fallback[symbol.toLowerCase()] = {
+          price: 0,
+          change_24h: 0,
+          volume_24h: 0,
+          market_cap: 0
+        };
+      });
+      return fallback;
+    }
   }
 
   // Calculate technical indicators (mock implementation - in production use a proper library)

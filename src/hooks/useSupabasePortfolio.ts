@@ -140,45 +140,52 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
 
       for (const asset of dbAssets) {
         const liveData = livePrices[asset.symbol.toLowerCase()];
-        if (liveData) {
-          const currentPrice = liveData.price;
-          const priceChange24h = liveData.change_24h || 0;
-          const assetTotalValue = asset.quantity * currentPrice;
-          
-          const updatedAsset: CryptoAsset = {
-            id: asset.id,
-            symbol: asset.symbol.toUpperCase(),
-            name: asset.name,
-            quantity: parseFloat(asset.quantity),
-            currentPrice,
-            priceChange24h,
-            totalValue: assetTotalValue,
-            addedDate: asset.created_at,
-            purchase_price: asset.purchase_price ? parseFloat(asset.purchase_price) : undefined,
-          };
+        
+        // Use live data if available, otherwise use stored data from database
+        const currentPrice = liveData?.price || parseFloat(asset.current_price) || parseFloat(asset.purchase_price) || 0;
+        const priceChange24h = liveData?.change_24h || 0;
+        const assetTotalValue = asset.quantity * currentPrice;
+        
+        const updatedAsset: CryptoAsset = {
+          id: asset.id,
+          symbol: asset.symbol.toUpperCase(),
+          name: asset.name,
+          quantity: parseFloat(asset.quantity),
+          currentPrice,
+          priceChange24h,
+          totalValue: assetTotalValue,
+          addedDate: asset.created_at,
+          purchase_price: asset.purchase_price ? parseFloat(asset.purchase_price) : undefined,
+        };
 
-          updatedAssets.push(updatedAsset);
-          totalValue += assetTotalValue;
-          
-          if (asset.purchase_price) {
-            const change = (currentPrice - parseFloat(asset.purchase_price)) * asset.quantity;
-            totalChange += change;
-          }
+        updatedAssets.push(updatedAsset);
+        totalValue += assetTotalValue;
+        
+        if (asset.purchase_price) {
+          const change = (currentPrice - parseFloat(asset.purchase_price)) * asset.quantity;
+          totalChange += change;
+        }
 
-          // Update database with current price
-          if (portfolioId) {
-            await supabase
-              .from('portfolio_assets')
-              .update({
-                current_price: currentPrice,
-                total_value: assetTotalValue,
-              })
-              .eq('id', asset.id);
-          }
+        // Update database with current price only if we got live data
+        if (portfolioId && liveData?.price) {
+          await supabase
+            .from('portfolio_assets')
+            .update({
+              current_price: currentPrice,
+              total_value: assetTotalValue,
+            })
+            .eq('id', asset.id);
         }
       }
 
       const changePercent = totalValue > 0 ? (totalChange / (totalValue - totalChange)) * 100 : 0;
+
+      console.log('Portfolio updated:', { 
+        assetsCount: updatedAssets.length, 
+        totalValue, 
+        totalChange, 
+        changePercent 
+      });
 
       setPortfolioData({
         assets: updatedAssets,
@@ -193,11 +200,37 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
       generateHistoricalData(updatedAssets);
     } catch (error: any) {
       console.error('Error updating live prices:', error);
-      setPortfolioData(prev => ({
-        ...prev,
-        error: error.message,
-        isLoading: false,
+      
+      // If live prices fail, still display portfolio with stored data
+      const fallbackAssets: CryptoAsset[] = dbAssets.map(asset => ({
+        id: asset.id,
+        symbol: asset.symbol.toUpperCase(),
+        name: asset.name,
+        quantity: parseFloat(asset.quantity),
+        currentPrice: parseFloat(asset.current_price) || parseFloat(asset.purchase_price) || 0,
+        priceChange24h: 0,
+        totalValue: parseFloat(asset.quantity) * (parseFloat(asset.current_price) || parseFloat(asset.purchase_price) || 0),
+        addedDate: asset.created_at,
+        purchase_price: asset.purchase_price ? parseFloat(asset.purchase_price) : undefined,
       }));
+
+      const fallbackTotalValue = fallbackAssets.reduce((sum, asset) => sum + asset.totalValue, 0);
+      
+      console.log('Using fallback portfolio data:', { 
+        assetsCount: fallbackAssets.length, 
+        totalValue: fallbackTotalValue 
+      });
+
+      setPortfolioData({
+        assets: fallbackAssets,
+        totalValue: fallbackTotalValue,
+        totalChange: 0,
+        changePercent: 0,
+        isLoading: false,
+        error: null, // Don't show error to user, just use fallback data
+      });
+
+      generateHistoricalData(fallbackAssets);
     }
   };
 
