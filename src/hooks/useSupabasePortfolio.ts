@@ -45,9 +45,13 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
   });
   const [historicalData, setHistoricalData] = useState<HistoricalDataPoint[]>([]);
 
-  // Load portfolio from database
   const loadPortfolio = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('No user found, skipping portfolio load');
+      return;
+    }
+
+    console.log('Loading portfolio for user:', user.id);
 
     try {
       setPortfolioData(prev => ({ ...prev, isLoading: true, error: null }));
@@ -59,9 +63,13 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
         .eq('user_id', user.id)
         .limit(1);
 
-      if (portfolioError) throw portfolioError;
+      if (portfolioError) {
+        console.error('Portfolio query error:', portfolioError);
+        throw portfolioError;
+      }
 
       if (!portfolios || portfolios.length === 0) {
+        console.log('No portfolio found, creating new one');
         // Create default portfolio if none exists
         const { data: newPortfolio, error: createError } = await supabase
           .from('portfolios')
@@ -69,11 +77,16 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
           .select('id')
           .single();
 
-        if (createError) throw createError;
+        if (createError) {
+          console.error('Error creating portfolio:', createError);
+          throw createError;
+        }
         portfolios.push(newPortfolio);
+        console.log('Created new portfolio:', newPortfolio);
       }
 
       const portfolioId = portfolios[0].id;
+      console.log('Using portfolio:', portfolioId);
 
       // Get portfolio assets
       const { data: assets, error: assetsError } = await supabase
@@ -81,11 +94,18 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
         .select('*')
         .eq('portfolio_id', portfolioId);
 
-      if (assetsError) throw assetsError;
+      if (assetsError) {
+        console.error('Assets query error:', assetsError);
+        throw assetsError;
+      }
+
+      console.log('Found assets:', assets?.length || 0);
 
       if (assets && assets.length > 0) {
+        console.log('Updating assets with live prices...');
         await updateAssetsWithLivePrices(assets, portfolioId);
       } else {
+        console.log('No assets found, setting empty portfolio');
         setPortfolioData(prev => ({
           ...prev,
           assets: [],
@@ -94,6 +114,7 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
           changePercent: 0,
           isLoading: false,
         }));
+        setHistoricalData([]);
       }
     } catch (error: any) {
       console.error('Error loading portfolio:', error);
@@ -187,7 +208,12 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
     quantity: number;
     currentPrice: number;
   }) => {
-    if (!user) return;
+    if (!user) {
+      console.log('Cannot add asset: no user');
+      return;
+    }
+
+    console.log('Adding asset:', newAssetData);
 
     try {
       // Get user's portfolio
@@ -248,18 +274,21 @@ export const useSupabasePortfolio = (currency: string = 'usd') => {
             total_value: newAssetData.quantity * newAssetData.currentPrice,
           }]);
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('Error inserting asset:', insertError);
+          throw insertError;
+        }
 
+        console.log('Asset added successfully');
         toast({
           title: "Asset Added",
           description: `${newAssetData.symbol.toUpperCase()} has been added to your portfolio.`,
         });
       }
 
-      // Reload portfolio immediately to show new data
-      setTimeout(() => {
-        loadPortfolio();
-      }, 100);
+      // Force reload portfolio to show new data
+      console.log('Reloading portfolio after asset addition...');
+      await loadPortfolio();
     } catch (error: any) {
       console.error('Error adding asset:', error);
       toast({

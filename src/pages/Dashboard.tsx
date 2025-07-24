@@ -43,6 +43,16 @@ const Dashboard = () => {
     refreshData
   } = useSupabasePortfolio(currency);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('Dashboard - Portfolio state:', {
+      assetsCount: assets.length,
+      totalValue: totalPortfolioValue,
+      isLoading,
+      error
+    });
+  }, [assets, totalPortfolioValue, isLoading, error]);
+
 
 
   // Generate quick technical indicators for preview
@@ -147,16 +157,39 @@ const Dashboard = () => {
 
       {/* Portfolio Chart */}
       {assets.length > 0 && (
-        <PortfolioChart
-          data={historicalData}
-          totalValue={totalPortfolioValue}
-          totalChange={portfolioChange}
-          changePercent={portfolioChangePercent}
-        />
+        <div className="space-y-6">
+          <h2 className="text-2xl font-display font-bold neon-text">Portfolio Performance</h2>
+          <PortfolioChart
+            data={historicalData}
+            totalValue={totalPortfolioValue}
+            totalChange={portfolioChange}
+            changePercent={portfolioChangePercent}
+          />
+        </div>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <Card className="glass-card p-12 text-center">
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <p className="text-muted-foreground">Loading portfolio...</p>
+          </div>
+        </Card>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <Card className="glass-card p-12 text-center border-destructive/50">
+          <p className="text-destructive mb-4">Error loading portfolio: {error}</p>
+          <Button onClick={refreshData} variant="outline">
+            Try Again
+          </Button>
+        </Card>
       )}
 
       {/* Assets Grid */}
-      {assets.length > 0 ? (
+      {!isLoading && !error && assets.length > 0 ? (
         <div className="space-y-8">
           <div>
             <h2 className="text-2xl font-display font-bold neon-text mb-6">
@@ -254,7 +287,7 @@ const Dashboard = () => {
             currency={currency}
           />
         </div>
-      ) : (
+      ) : !isLoading && !error ? (
         <Card className="glass-card p-12 text-center">
           <Bot className="w-16 h-16 text-muted-foreground mx-auto mb-4 animate-float" />
           <h3 className="text-xl font-semibold text-foreground mb-2">
@@ -271,7 +304,7 @@ const Dashboard = () => {
             Add Your First Asset
           </Button>
         </Card>
-      )}
+      ) : null}
 
       {/* Modals */}
       <EnhancedAddAssetModal
