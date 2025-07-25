@@ -114,7 +114,7 @@ const Auth = () => {
       if (data.user) {
         toast({
           title: "Account Created!",
-          description: "Welcome to CryptoSensei! You can now start tracking your portfolio.",
+          description: "Welcome to Sense AIO! You can now start tracking your portfolio.",
         });
         navigate('/');
       }
@@ -143,7 +143,7 @@ const Auth = () => {
         <div className="space-y-8 text-center lg:text-left">
           <div className="space-y-4">
             <h1 className="text-4xl lg:text-6xl font-display font-bold neon-text">
-              CryptoSensei
+              Sense AIO
             </h1>
             <p className="text-xl text-muted-foreground max-w-lg">
               Master your crypto portfolio with AI-powered insights and real-time tracking
@@ -190,7 +190,7 @@ const Auth = () => {
               <div className="text-center space-y-2">
                 <h2 className="text-2xl font-bold">Welcome Back</h2>
                 <p className="text-muted-foreground">
-                  Sign in to your CryptoSensei account
+                  Sign in to your Sense AIO account
                 </p>
               </div>
 
@@ -260,7 +260,7 @@ const Auth = () => {
               <div className="text-center space-y-2">
                 <h2 className="text-2xl font-bold">Create Account</h2>
                 <p className="text-muted-foreground">
-                  Join CryptoSensei and start tracking your portfolio
+                  Join Sense AIO and start tracking your portfolio
                 </p>
               </div>
 

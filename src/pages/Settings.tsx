@@ -60,7 +60,7 @@ const Settings = () => {
         <div>
           <h1 className="text-3xl font-display font-bold neon-text">Settings</h1>
           <p className="text-muted-foreground mt-1">
-            Customize your Crypto Coach experience
+            Customize your Sense AIO experience
           </p>
         </div>
         <Button onClick={handleSaveSettings} className="gradient-primary hover-glow">
@@ -96,7 +96,7 @@ const Settings = () => {
                   <SelectTrigger className="bg-muted/20 border-border/50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[200]">
                     {currencies.map((currency) => (
                       <SelectItem key={currency.value} value={currency.value}>
                         <div className="flex items-center space-x-2">
@@ -193,7 +193,7 @@ const Settings = () => {
                   <SelectTrigger className="bg-muted/20 border-border/50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[200]">
                     {refreshIntervals.map((interval) => (
                       <SelectItem key={interval.value} value={interval.value.toString()}>
                         {interval.label}

@@ -28,8 +28,8 @@ const Navigation = () => {
               alt="Sense AIO Logo"
               className="w-10 h-10 object-contain"
             />
-            <h1 className="text-xl font-display font-bold neon-text">
-              CryptoSensei
+            <h1 className="text-xl font-display font-bold neon-text hidden sm:block">
+              Sense AIO
             </h1>
           </div>
 

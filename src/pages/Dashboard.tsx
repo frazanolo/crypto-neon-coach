@@ -8,6 +8,7 @@ import PortfolioChart from '../components/PortfolioChart';
 import { CurrencySelector } from '../components/CurrencySelector';
 import { useSupabasePortfolio } from '../hooks/useSupabasePortfolio';
 import AIMarketAnalysis from '../components/AIMarketAnalysis';
+import AdvancedAIAnalysis from '../components/AdvancedAIAnalysis';
 
 interface CryptoAsset {
   id: string;
@@ -279,8 +280,8 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* AI Market Analysis */}
-          <AIMarketAnalysis
+          {/* Advanced AI Analysis */}
+          <AdvancedAIAnalysis
             selectedAsset={selectedAsset}
             portfolioAssets={assets}
             totalValue={totalPortfolioValue}
