@@ -9,6 +9,7 @@ import { CurrencySelector } from '../components/CurrencySelector';
 import { useSupabasePortfolio } from '../hooks/useSupabasePortfolio';
 import AIMarketAnalysis from '../components/AIMarketAnalysis';
 import AdvancedAIAnalysis from '../components/AdvancedAIAnalysis';
+import { MarketInsightsPanel } from '../components/MarketInsightsPanel';
 
 interface CryptoAsset {
   id: string;
@@ -166,6 +167,9 @@ const Dashboard = () => {
             totalChange={portfolioChange}
             changePercent={portfolioChangePercent}
           />
+          
+          {/* Market Insights Panel */}
+          <MarketInsightsPanel />
         </div>
       )}
 
