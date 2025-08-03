@@ -16,6 +16,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { TradingViewChart } from './TradingViewChart';
 
 interface AdvancedAIAnalysisProps {
   selectedAsset: any;
@@ -340,134 +341,158 @@ const AdvancedAIAnalysis: React.FC<AdvancedAIAnalysisProps> = ({
           </div>
         </Card>
       ) : analysis ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Technical Indicators */}
+        <div className="space-y-6">
+          {/* Trading Chart */}
           <Card className="glass-card p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <LineChart className="w-5 h-5 text-primary" />
-              <h4 className="font-semibold text-foreground">Technical Indicators</h4>
-            </div>
-            <div className="space-y-4">
-              {indicators.map((indicator, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">{indicator.name}</span>
-                    {getSignalBadge(indicator.signal)}
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{indicator.description}</span>
-                    <span>{indicator.strength}% strength</span>
-                  </div>
-                  <Progress value={indicator.strength} className="h-2" />
-                </div>
-              ))}
-            </div>
+            <TradingViewChart
+              symbol={selectedAsset.symbol}
+              tradingStyle="long-term"
+              onAnalysisUpdate={(chartAnalysis) => {
+                console.log('Chart analysis updated:', chartAnalysis);
+              }}
+            />
           </Card>
 
-          {/* Fibonacci Retracement */}
-          <Card className="glass-card p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <Target className="w-5 h-5 text-secondary" />
-              <h4 className="font-semibold text-foreground">Fibonacci Levels</h4>
-            </div>
-            <div className="space-y-3">
-              {analysis.fibonacci.map((fib, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
-                  <div>
-                    <div className="font-medium text-foreground">
-                      {(fib.level * 100).toFixed(1)}% {fib.type}
+          {/* Technical Analysis Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Technical Indicators */}
+            <Card className="glass-card p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <LineChart className="w-5 h-5 text-destructive" />
+                <h4 className="font-semibold text-foreground">Technical Indicators</h4>
+              </div>
+              <div className="space-y-4">
+                {indicators.map((indicator, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">{indicator.name}</span>
+                      <Badge 
+                        variant={indicator.signal === 'bullish' ? 'default' : 'destructive'}
+                        className={indicator.signal === 'bullish' ? 'bg-destructive text-destructive-foreground' : 'bg-destructive text-destructive-foreground'}
+                      >
+                        {indicator.signal === 'bullish' ? 'Bullish' : 'Bearish'}
+                      </Badge>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatPrice(fib.price)}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{indicator.description}</span>
+                      <span>{indicator.strength.toFixed(2)}% strength</span>
                     </div>
-                  </div>
-                  <Badge 
-                    variant={fib.strength === 'strong' ? 'default' : 'secondary'}
-                    className={fib.type === 'support' ? 'border-success/40' : 'border-destructive/40'}
-                  >
-                    {fib.strength}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Price Targets */}
-          <Card className="glass-card p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <ChevronRight className="w-5 h-5 text-accent" />
-              <h4 className="font-semibold text-foreground">Price Targets</h4>
-            </div>
-            <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-3 rounded-lg bg-muted/20">
-                  <div className="text-xs text-muted-foreground mb-1">Short-term</div>
-                  <div className="font-medium text-foreground">
-                    {formatPrice(analysis.priceTarget.short)}
-                  </div>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-muted/20">
-                  <div className="text-xs text-muted-foreground mb-1">Medium-term</div>
-                  <div className="font-medium text-foreground">
-                    {formatPrice(analysis.priceTarget.medium)}
-                  </div>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-muted/20">
-                  <div className="text-xs text-muted-foreground mb-1">Long-term</div>
-                  <div className="font-medium text-foreground">
-                    {formatPrice(analysis.priceTarget.long)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Market Metrics */}
-          <Card className="glass-card p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <PieChart className="w-5 h-5 text-warning" />
-              <h4 className="font-semibold text-foreground">Macro Analysis</h4>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Bitcoin Dominance</span>
-                <span className="font-medium text-foreground">
-                  {analysis.marketMetrics.bitcoinDominance.toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Fear & Greed Index</span>
-                <Badge variant={analysis.marketMetrics.fearGreedIndex > 50 ? 'default' : 'destructive'}>
-                  {analysis.marketMetrics.fearGreedIndex.toFixed(0)}
-                </Badge>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">24h Volume</span>
-                <span className="font-medium text-foreground">
-                  ${(analysis.marketMetrics.volume24h / 1e9).toFixed(1)}B
-                </span>
-              </div>
-            </div>
-
-            {/* Risk Assessment */}
-            <div className="mt-6 pt-4 border-t border-border/30">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-foreground">Risk Level</span>
-                <Badge className={getRiskColor(analysis.riskAssessment.level)}>
-                  <AlertTriangle className="w-3 h-3 mr-1" />
-                  {analysis.riskAssessment.level.toUpperCase()}
-                </Badge>
-              </div>
-              <div className="space-y-1">
-                {analysis.riskAssessment.factors.slice(0, 3).map((factor, index) => (
-                  <div key={index} className="text-xs text-muted-foreground flex items-center">
-                    <div className="w-1 h-1 rounded-full bg-muted-foreground mr-2" />
-                    {factor}
+                    <div className="w-full bg-muted/20 rounded-full h-2">
+                      <div 
+                        className="bg-destructive h-2 rounded-full transition-all" 
+                        style={{ width: `${indicator.strength}%` }}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
-          </Card>
+            </Card>
+
+            {/* Fibonacci Retracement */}
+            <Card className="glass-card p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <Target className="w-5 h-5 text-destructive" />
+                <h4 className="font-semibold text-foreground">Fibonacci Levels</h4>
+              </div>
+              <div className="space-y-3">
+                {analysis.fibonacci.map((fib, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+                    <div>
+                      <div className="font-medium text-foreground">
+                        {(fib.level * 100).toFixed(1)}% {fib.type}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatPrice(fib.price)}
+                      </div>
+                    </div>
+                    <Badge 
+                      variant={fib.strength === 'strong' ? 'destructive' : 'secondary'}
+                      className={fib.strength === 'strong' ? 'bg-destructive text-destructive-foreground' : 'bg-warning text-warning-foreground'}
+                    >
+                      {fib.strength}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Price Targets */}
+            <Card className="glass-card p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <ChevronRight className="w-5 h-5 text-destructive" />
+                <h4 className="font-semibold text-foreground">Price Targets</h4>
+              </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-3 rounded-lg bg-muted/20">
+                    <div className="text-xs text-muted-foreground mb-1">Short-term</div>
+                    <div className="font-medium text-foreground">
+                      {formatPrice(analysis.priceTarget.short)}
+                    </div>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/20">
+                    <div className="text-xs text-muted-foreground mb-1">Medium-term</div>
+                    <div className="font-medium text-foreground">
+                      {formatPrice(analysis.priceTarget.medium)}
+                    </div>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/20">
+                    <div className="text-xs text-muted-foreground mb-1">Long-term</div>
+                    <div className="font-medium text-foreground">
+                      {formatPrice(analysis.priceTarget.long)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Market Metrics */}
+            <Card className="glass-card p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <PieChart className="w-5 h-5 text-warning" />
+                <h4 className="font-semibold text-foreground">Macro Analysis</h4>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Bitcoin Dominance</span>
+                  <span className="font-medium text-foreground">
+                    {analysis.marketMetrics.bitcoinDominance.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Fear & Greed Index</span>
+                  <Badge variant={analysis.marketMetrics.fearGreedIndex > 50 ? 'default' : 'destructive'}>
+                    {analysis.marketMetrics.fearGreedIndex.toFixed(0)}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">24h Volume</span>
+                  <span className="font-medium text-foreground">
+                    ${(analysis.marketMetrics.volume24h / 1e9).toFixed(1)}B
+                  </span>
+                </div>
+              </div>
+
+              {/* Risk Assessment */}
+              <div className="mt-6 pt-4 border-t border-border/30">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-foreground">Risk Level</span>
+                  <Badge className={`${getRiskColor(analysis.riskAssessment.level)} border-destructive`}>
+                    <AlertTriangle className="w-3 h-3 mr-1" />
+                    {analysis.riskAssessment.level.toUpperCase()}
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  {analysis.riskAssessment.factors.slice(0, 3).map((factor, index) => (
+                    <div key={index} className="text-xs text-muted-foreground flex items-center">
+                      <div className="w-1 h-1 rounded-full bg-muted-foreground mr-2" />
+                      {factor}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          </div>
         </div>
       ) : null}
     </div>
