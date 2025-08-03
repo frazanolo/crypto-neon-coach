@@ -597,44 +597,38 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
                     </defs>
                   </AreaChart>
                 ) : (
-                  <ComposedChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                    <XAxis 
-                      dataKey="time" 
-                      stroke="#9ca3af"
-                      fontSize={12}
-                      tickFormatter={(value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    />
-                     <YAxis 
-                      stroke="#9ca3af"
-                      fontSize={12}
-                      domain={['dataMin - 50', 'dataMax + 50']}
-                      tickFormatter={(value) => `$${value.toFixed(2)}`}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="volume" yAxisId="volume" fill="#6b7280" opacity={0.3} />
-                    <Line 
-                      type="monotone" 
-                      dataKey="high" 
-                      stroke="#10b981" 
-                      strokeWidth={1}
-                      dot={false}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="low" 
-                      stroke="#ef4444" 
-                      strokeWidth={1}
-                      dot={false}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="close" 
-                      stroke="#3b82f6" 
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </ComposedChart>
+                <ComposedChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis 
+                    dataKey="time" 
+                    stroke="#9ca3af"
+                    fontSize={12}
+                    tickFormatter={(value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  />
+                  {/* Define Y axes */}
+                  <YAxis 
+                    yAxisId="left"
+                    stroke="#9ca3af"
+                    fontSize={12}
+                    domain={['dataMin - 50', 'dataMax + 50']}
+                    tickFormatter={(value) => `$${value.toFixed(2)}`}
+                  />
+                  <YAxis 
+                    yAxisId="volume"
+                    orientation="right"
+                    stroke="#6b7280"
+                    fontSize={12}
+                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
+                  />
+                  
+                  <Tooltip content={<CustomTooltip />} />
+                  
+                  <Bar dataKey="volume" yAxisId="volume" fill="#6b7280" opacity={0.3} />
+                  <Line dataKey="high" yAxisId="left" stroke="#10b981" strokeWidth={1} dot={false} />
+                  <Line dataKey="low" yAxisId="left" stroke="#ef4444" strokeWidth={1} dot={false} />
+                  <Line dataKey="close" yAxisId="left" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                </ComposedChart>
+
                 )}
               </ResponsiveContainer>
             )}
