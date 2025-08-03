@@ -28,9 +28,12 @@ import {
   Zap,
   Brain,
   Settings,
-  Eye
+  Eye,
+  HelpCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { CandlestickChart as CandlestickChartComponent } from '@/components/CandlestickChart';
+import { EducationalIndicatorModal } from '@/components/EducationalIndicatorModal';
 
 interface CandleData {
   time: string;
@@ -78,13 +81,15 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
   onAnalysisUpdate
 }) => {
   const [timeframe, setTimeframe] = useState<string>(tradingStyle === 'short-term' ? '1h' : '1d');
-  const [chartType, setChartType] = useState<'candlestick' | 'line' | 'area'>('line');
+  const [chartType, setChartType] = useState<'candlestick' | 'line' | 'area'>('candlestick');
   const [indicators, setIndicators] = useState<TechnicalIndicator[]>([]);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
   const [chartData, setChartData] = useState<CandleData[]>([]);
   const [activeIndicators, setActiveIndicators] = useState<string[]>(['SMA20', 'SMA50']);
   const [currentPrice, setCurrentPrice] = useState(0);
+  const [selectedIndicator, setSelectedIndicator] = useState<string | null>(null);
+  const [showEducationalModal, setShowEducationalModal] = useState(false);
 
   const { toast } = useToast();
 
@@ -466,7 +471,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
               size="sm"
               onClick={() => setChartType('candlestick')}
             >
-              <BarChart3 className="w-4 h-4" />
+              <CandlestickChart className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -510,119 +515,129 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
         </CardHeader>
         <CardContent>
           <div className="h-[500px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              {chartType === 'line' ? (
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis 
-                    dataKey="time" 
-                    stroke="#9ca3af"
-                    fontSize={12}
-                    tickFormatter={(value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  />
-                  <YAxis 
-                    stroke="#9ca3af"
-                    fontSize={12}
-                    domain={['dataMin - 50', 'dataMax + 50']}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="close" 
-                    stroke="#3b82f6" 
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  {activeIndicators.includes('SMA20') && (
+            {chartType === 'candlestick' ? (
+              <CandlestickChartComponent 
+                data={chartData} 
+                activeIndicators={activeIndicators}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                {chartType === 'line' ? (
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis 
+                      dataKey="time" 
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      tickFormatter={(value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    />
+                     <YAxis 
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      domain={['dataMin - 50', 'dataMax + 50']}
+                      tickFormatter={(value) => `$${value.toFixed(2)}`}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
                     <Line 
                       type="monotone" 
-                      dataKey="sma20" 
+                      dataKey="close" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    {activeIndicators.includes('SMA20') && (
+                      <Line 
+                        type="monotone" 
+                        dataKey="sma20" 
+                        stroke="#10b981" 
+                        strokeWidth={1}
+                        strokeDasharray="5 5"
+                        dot={false}
+                      />
+                    )}
+                    {activeIndicators.includes('SMA50') && (
+                      <Line 
+                        type="monotone" 
+                        dataKey="sma50" 
+                        stroke="#f59e0b" 
+                        strokeWidth={1}
+                        strokeDasharray="5 5"
+                        dot={false}
+                      />
+                    )}
+                  </LineChart>
+                ) : chartType === 'area' ? (
+                  <AreaChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis 
+                      dataKey="time" 
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      tickFormatter={(value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    />
+                     <YAxis 
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      domain={['dataMin - 50', 'dataMax + 50']}
+                      tickFormatter={(value) => `$${value.toFixed(2)}`}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="close" 
+                      stroke="#3b82f6" 
+                      fill="url(#colorPrice)"
+                      strokeWidth={2}
+                    />
+                    <defs>
+                      <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                  </AreaChart>
+                ) : (
+                  <ComposedChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis 
+                      dataKey="time" 
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      tickFormatter={(value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    />
+                     <YAxis 
+                      stroke="#9ca3af"
+                      fontSize={12}
+                      domain={['dataMin - 50', 'dataMax + 50']}
+                      tickFormatter={(value) => `$${value.toFixed(2)}`}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="volume" yAxisId="volume" fill="#6b7280" opacity={0.3} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="high" 
                       stroke="#10b981" 
                       strokeWidth={1}
-                      strokeDasharray="5 5"
                       dot={false}
                     />
-                  )}
-                  {activeIndicators.includes('SMA50') && (
                     <Line 
                       type="monotone" 
-                      dataKey="sma50" 
-                      stroke="#f59e0b" 
+                      dataKey="low" 
+                      stroke="#ef4444" 
                       strokeWidth={1}
-                      strokeDasharray="5 5"
                       dot={false}
                     />
-                  )}
-                </LineChart>
-              ) : chartType === 'area' ? (
-                <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis 
-                    dataKey="time" 
-                    stroke="#9ca3af"
-                    fontSize={12}
-                    tickFormatter={(value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  />
-                  <YAxis 
-                    stroke="#9ca3af"
-                    fontSize={12}
-                    domain={['dataMin - 50', 'dataMax + 50']}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="close" 
-                    stroke="#3b82f6" 
-                    fill="url(#colorPrice)"
-                    strokeWidth={2}
-                  />
-                  <defs>
-                    <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                </AreaChart>
-              ) : (
-                <ComposedChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis 
-                    dataKey="time" 
-                    stroke="#9ca3af"
-                    fontSize={12}
-                    tickFormatter={(value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  />
-                  <YAxis 
-                    stroke="#9ca3af"
-                    fontSize={12}
-                    domain={['dataMin - 50', 'dataMax + 50']}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="volume" yAxisId="volume" fill="#6b7280" opacity={0.3} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="high" 
-                    stroke="#10b981" 
-                    strokeWidth={1}
-                    dot={false}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="low" 
-                    stroke="#ef4444" 
-                    strokeWidth={1}
-                    dot={false}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="close" 
-                    stroke="#3b82f6" 
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </ComposedChart>
-              )}
-            </ResponsiveContainer>
+                    <Line 
+                      type="monotone" 
+                      dataKey="close" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </ComposedChart>
+                )}
+              </ResponsiveContainer>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -650,12 +665,19 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
                 {indicators.map((indicator, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-4 bg-muted/10 rounded-lg border border-border/30"
+                    className="flex items-center justify-between p-4 bg-muted/10 rounded-lg border border-border/30 hover:bg-muted/20 transition-colors cursor-pointer group"
+                    onClick={() => {
+                      setSelectedIndicator(indicator.name);
+                      setShowEducationalModal(true);
+                    }}
                   >
                     <div className="flex items-center gap-3">
                       {getSignalIcon(indicator.signal)}
                       <div>
-                        <div className="font-medium">{indicator.name}</div>
+                        <div className="font-medium flex items-center gap-2">
+                          {indicator.name}
+                          <HelpCircle className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
                         <div className="text-sm text-muted-foreground">
                           {indicator.description}
                         </div>
@@ -667,7 +689,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
                           ? `${(indicator.value / 1000).toFixed(0)}K`
                           : indicator.name === 'Momentum'
                           ? `${indicator.value > 0 ? '+' : ''}${indicator.value.toFixed(2)}%`
-                          : indicator.value.toFixed(2)
+                          : indicator.value.toFixed(4)
                         }
                       </div>
                       <div className={`text-sm capitalize ${getSignalColor(indicator.signal)}`}>
@@ -821,6 +843,17 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Educational Modal */}
+      <EducationalIndicatorModal
+        indicator={selectedIndicator}
+        isOpen={showEducationalModal}
+        onClose={() => {
+          setShowEducationalModal(false);
+          setSelectedIndicator(null);
+        }}
+        tradingStyle={tradingStyle}
+      />
     </div>
   );
 };
