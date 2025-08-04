@@ -143,11 +143,20 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, active
           interval="preserveStartEnd"
         />
         <YAxis 
+          yAxisId="price"
           stroke="#9ca3af"
           fontSize={11}
           domain={['dataMin * 0.995', 'dataMax * 1.005']}
           tickFormatter={(value) => `$${value.toFixed(4)}`}
           width={80}
+        />
+        <YAxis 
+          yAxisId="volume"
+          orientation="right"
+          stroke="#6b7280"
+          fontSize={11}
+          tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
+          width={60}
         />
         <Tooltip content={<CandlestickTooltip />} />
         
@@ -169,6 +178,7 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, active
             strokeDasharray="3 3"
             dot={false}
             connectNulls={false}
+            yAxisId="price"
           />
         )}
         {activeIndicators.includes('SMA50') && (
@@ -180,6 +190,7 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, active
             strokeDasharray="5 5"
             dot={false}
             connectNulls={false}
+            yAxisId="price"
           />
         )}
 
@@ -188,6 +199,7 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, active
           dataKey="high"
           fill="transparent"
           shape={(props: any) => <Candlestick {...props} />}
+          yAxisId="price"
         />
       </ComposedChart>
     </ResponsiveContainer>
