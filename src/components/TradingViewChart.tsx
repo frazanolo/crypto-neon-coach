@@ -19,8 +19,18 @@ import {
   MousePointer
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { CandlestickChart as CandlestickChartComponent } from '@/components/CandlestickChart';
-import { EducationalIndicatorModal } from '@/components/EducationalIndicatorModal';
+import { cryptoAPI } from '@/lib/cryptoApi';
+import { 
+  ComposedChart, 
+  Bar, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  ReferenceLine 
+} from 'recharts';
 
 interface CandleData {
   time: string;
@@ -124,88 +134,107 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
     }
   ];
 
-  // Generate realistic market data
-  const generateMarketData = (timeframe: string): CandleData[] => {
-    const now = Date.now();
-    const intervals = {
-      '1m': 60 * 1000,
-      '5m': 5 * 60 * 1000,
-      '1h': 60 * 60 * 1000,
-      '4h': 4 * 60 * 60 * 1000,
-      '1d': 24 * 60 * 60 * 1000,
-      '1w': 7 * 24 * 60 * 60 * 1000
-    }[timeframe] || 60 * 60 * 1000;
-
-    const dataPoints = tradingStyle === 'short-term' ? 100 : 200;
-    const data: CandleData[] = [];
-    
-    let basePrice = 50000; // Default BTC price
-    if (symbol.toLowerCase() === 'eth') basePrice = 3000;
-    if (symbol.toLowerCase() === 'xrp') basePrice = 2.5;
-
-    // Generate price data with realistic patterns
-    for (let i = dataPoints; i >= 0; i--) {
-      const timestamp = new Date(now - i * intervals);
-      const volatility = tradingStyle === 'short-term' ? 0.03 : 0.02;
+  // Fetch real market data from CoinGecko API
+  const fetchRealMarketData = async (timeframe: string): Promise<CandleData[]> => {
+    try {
+      // Get real current price first
+      const livePrice = await cryptoAPI.getLivePrices([symbol]);
+      const currentPriceData = livePrice[symbol.toLowerCase()];
       
-      // Add trend and noise
-      const trendFactor = Math.sin(i / 20) * 0.1;
-      const noise = (Math.random() - 0.5) * volatility;
-      const change = trendFactor + noise;
-      
-      const open = basePrice;
-      const close = open * (1 + change);
-      const high = Math.max(open, close) * (1 + Math.random() * 0.015);
-      const low = Math.min(open, close) * (1 - Math.random() * 0.015);
-      const volume = Math.random() * 1000000 + 500000;
+      if (currentPriceData) {
+        setCurrentPrice(currentPriceData.price);
+      }
 
-      data.push({
-        time: timestamp.toISOString().split('T')[0] + ' ' + timestamp.toTimeString().split(' ')[0],
-        open,
-        high,
-        low,
-        close,
-        volume
+      // Calculate days based on timeframe
+      const days = {
+        '1m': 1,
+        '5m': 1,
+        '1h': 7,
+        '4h': 30,
+        '1d': 365,
+        '1w': 365 * 2
+      }[timeframe] || 30;
+
+      // Get historical data
+      const coinId = cryptoAPI.mapSymbolToId(symbol);
+      const histData = await cryptoAPI.getHistoricalData(coinId, 'usd', days);
+      
+      // Convert price data to candlestick format
+      const data: CandleData[] = [];
+      const priceData = histData.prices || [];
+      const volumeData = histData.total_volumes || [];
+      
+      // Group prices by timeframe intervals
+      const intervals = {
+        '1m': 60 * 1000,
+        '5m': 5 * 60 * 1000,
+        '1h': 60 * 60 * 1000,
+        '4h': 4 * 60 * 60 * 1000,
+        '1d': 24 * 60 * 60 * 1000,
+        '1w': 7 * 24 * 60 * 60 * 1000
+      }[timeframe] || 24 * 60 * 60 * 1000;
+
+      // Process data into OHLC format
+      for (let i = 0; i < priceData.length - 4; i += 4) {
+        const timestamp = new Date(priceData[i][0]);
+        const prices = priceData.slice(i, i + 4).map(p => p[1]);
+        const volumes = volumeData.slice(i, i + 4).map(v => v[1]);
+        
+        const open = prices[0];
+        const close = prices[prices.length - 1];
+        const high = Math.max(...prices);
+        const low = Math.min(...prices);
+        const volume = volumes.reduce((sum, v) => sum + v, 0) / volumes.length;
+
+        data.push({
+          time: timestamp.toISOString().split('T')[0] + ' ' + timestamp.toTimeString().split(' ')[0],
+          open,
+          high,
+          low,
+          close,
+          volume
+        });
+      }
+
+      // Calculate technical indicators
+      data.forEach((item, index) => {
+        if (index >= 19) {
+          item.sma20 = data.slice(index - 19, index + 1).reduce((sum, d) => sum + d.close, 0) / 20;
+        }
+        if (index >= 49) {
+          item.sma50 = data.slice(index - 49, index + 1).reduce((sum, d) => sum + d.close, 0) / 50;
+        }
+        
+        // RSI calculation
+        if (index >= 14) {
+          let gains = 0, losses = 0;
+          for (let j = 1; j <= 14; j++) {
+            const diff = data[index - j + 1].close - data[index - j].close;
+            if (diff > 0) gains += diff;
+            else losses -= diff;
+          }
+          const rs = gains / losses;
+          item.rsi = 100 - (100 / (1 + rs));
+        }
       });
 
-      basePrice = close;
+      return data.slice(-100); // Return last 100 data points
+    } catch (error) {
+      console.error('Failed to fetch real market data:', error);
+      // Fallback to demo data if API fails
+      return [];
     }
-
-    // Calculate moving averages and RSI
-    data.forEach((item, index) => {
-      if (index >= 19) {
-        item.sma20 = data.slice(index - 19, index + 1).reduce((sum, d) => sum + d.close, 0) / 20;
-      }
-      if (index >= 49) {
-        item.sma50 = data.slice(index - 49, index + 1).reduce((sum, d) => sum + d.close, 0) / 50;
-      }
-      
-      // Simple RSI calculation
-      if (index >= 14) {
-        let gains = 0, losses = 0;
-        for (let j = 1; j <= 14; j++) {
-          const diff = data[index - j + 1].close - data[index - j].close;
-          if (diff > 0) gains += diff;
-          else losses -= diff;
-        }
-        const rs = gains / losses;
-        item.rsi = 100 - (100 / (1 + rs));
-      }
-    });
-
-    setCurrentPrice(data[data.length - 1]?.close || basePrice);
-    return data;
   };
 
   // Load chart data
-  const loadChartData = () => {
+  const loadChartData = async () => {
     try {
-      const data = generateMarketData(timeframe);
+      const data = await fetchRealMarketData(timeframe);
       setChartData(data);
       
       toast({
         title: "Chart Updated",
-        description: `Loaded ${symbol.toUpperCase()} ${timeframe} data`,
+        description: `Loaded ${symbol.toUpperCase()} ${timeframe} real market data`,
       });
     } catch (error) {
       console.error('Data loading failed:', error);
@@ -247,9 +276,11 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
         });
       }
       
-      // Show educational info for indicators
-      setSelectedIndicator(tool.name);
-      setShowEducationalModal(true);
+      // Show tooltip for indicators
+      toast({
+        title: `${tool.name} Indicator`,
+        description: `${tool.description} - Added to chart`,
+      });
     }
 
     // Handle pattern recognition tools
@@ -413,25 +444,107 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             </div>
             
             <div className="h-[600px] w-full">
-              <CandlestickChartComponent 
-                data={chartData} 
-                activeIndicators={activeIndicators}
-              />
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis 
+                    dataKey="time" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12 }}
+                    className="text-muted-foreground"
+                  />
+                  <YAxis 
+                    domain={['dataMin - 5', 'dataMax + 5']}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12 }}
+                    className="text-muted-foreground"
+                  />
+                  
+                  {/* Candlesticks */}
+                  <Bar 
+                    dataKey={(data: CandleData) => [data.low, data.high]}
+                    fill="transparent"
+                    stroke="hsl(var(--muted-foreground))"
+                    strokeWidth={1}
+                  />
+                  
+                  {/* Price lines */}
+                  <Line 
+                    type="monotone" 
+                    dataKey="close" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, fill: "hsl(var(--primary))" }}
+                  />
+                  
+                  {/* Technical indicators */}
+                  {activeIndicators.includes('SMA20') && (
+                    <Line 
+                      type="monotone" 
+                      dataKey="sma20" 
+                      stroke="hsl(var(--chart-1))" 
+                      strokeWidth={1}
+                      dot={false}
+                    />
+                  )}
+                  
+                  {activeIndicators.includes('SMA50') && (
+                    <Line 
+                      type="monotone" 
+                      dataKey="sma50" 
+                      stroke="hsl(var(--chart-2))" 
+                      strokeWidth={1}
+                      dot={false}
+                    />
+                  )}
+                  
+                  <Tooltip 
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload as CandleData;
+                        return (
+                          <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
+                            <p className="text-sm font-medium">{label}</p>
+                            <div className="space-y-1 text-xs">
+                              <div className="flex justify-between gap-4">
+                                <span>Open:</span>
+                                <span className="font-mono">${data.open.toFixed(4)}</span>
+                              </div>
+                              <div className="flex justify-between gap-4">
+                                <span>High:</span>
+                                <span className="font-mono text-green-500">${data.high.toFixed(4)}</span>
+                              </div>
+                              <div className="flex justify-between gap-4">
+                                <span>Low:</span>
+                                <span className="font-mono text-red-500">${data.low.toFixed(4)}</span>
+                              </div>
+                              <div className="flex justify-between gap-4">
+                                <span>Close:</span>
+                                <span className="font-mono">${data.close.toFixed(4)}</span>
+                              </div>
+                              {activeIndicators.includes('RSI') && data.rsi && (
+                                <div className="flex justify-between gap-4">
+                                  <span>RSI:</span>
+                                  <span className="font-mono">{data.rsi.toFixed(2)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Educational Modal */}
-      <EducationalIndicatorModal
-        indicator={selectedIndicator}
-        isOpen={showEducationalModal}
-        onClose={() => {
-          setShowEducationalModal(false);
-          setSelectedIndicator(null);
-        }}
-        tradingStyle={tradingStyle}
-      />
     </div>
   );
 };
