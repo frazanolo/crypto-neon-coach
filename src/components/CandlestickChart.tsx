@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, LineData, PriceLineOptions } from 'lightweight-charts';
+import { ResponsiveContainer, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, Bar, Cell } from 'recharts';
 
 interface CandleData {
   time: string;
@@ -20,240 +20,304 @@ interface CandlestickChartProps {
   onToolClick?: (tool: string, data: any) => void;
 }
 
+// Professional Candlestick component with proper styling
+const ProfessionalCandlestick = (props: any) => {
+  const { payload, x, y, width, height } = props;
+  
+  if (!payload) return null;
+  
+  const { open, high, low, close } = payload;
+  const isPositive = close >= open;
+  const color = isPositive ? '#22c55e' : '#ef4444';
+  
+  // Calculate proper scaling
+  const priceRange = high - low;
+  const bodyHeight = Math.abs(close - open);
+  const bodyTop = Math.max(open, close);
+  const bodyBottom = Math.min(open, close);
+  
+  // Scale to chart dimensions
+  const wickTop = y + ((high - bodyTop) / priceRange) * height;
+  const wickBottom = y + ((high - bodyBottom) / priceRange) * height;
+  const bodyY = y + ((high - bodyTop) / priceRange) * height;
+  const bodyHeightPx = (bodyHeight / priceRange) * height;
+  
+  const candleWidth = Math.max(2, width * 0.8);
+  const candleX = x + (width - candleWidth) / 2;
+  const wickX = x + width / 2;
+  
+  return (
+    <g>
+      {/* Upper wick */}
+      {high > bodyTop && (
+        <line
+          x1={wickX}
+          y1={wickTop}
+          x2={wickX}
+          y2={bodyY}
+          stroke={color}
+          strokeWidth={1}
+        />
+      )}
+      
+      {/* Lower wick */}
+      {low < bodyBottom && (
+        <line
+          x1={wickX}
+          y1={wickBottom}
+          x2={wickX}
+          y2={bodyY + bodyHeightPx}
+          stroke={color}
+          strokeWidth={1}
+        />
+      )}
+      
+      {/* Body */}
+      <rect
+        x={candleX}
+        y={bodyY}
+        width={candleWidth}
+        height={Math.max(1, bodyHeightPx)}
+        fill={isPositive ? color : color}
+        fillOpacity={isPositive ? 0.9 : 1}
+        stroke={color}
+        strokeWidth={0.5}
+      />
+    </g>
+  );
+};
+
+// Professional tooltip
+const ProfessionalTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    const change = data.close - data.open;
+    const changePercent = ((change / data.open) * 100);
+    
+    return (
+      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-xl min-w-[220px]">
+        <p className="text-sm font-semibold mb-2 text-foreground border-b border-border/30 pb-2">
+          {new Date(data.time).toLocaleDateString('en-US', { 
+            weekday: 'short',
+            month: 'short', 
+            day: 'numeric',
+            year: 'numeric'
+          })}
+        </p>
+        <div className="space-y-1.5 text-xs">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Open:</span>
+                <span className="font-mono text-foreground">${data.open?.toFixed(4)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">High:</span>
+                <span className="font-mono text-green-500">${data.high?.toFixed(4)}</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Low:</span>
+                <span className="font-mono text-red-500">${data.low?.toFixed(4)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Close:</span>
+                <span className={`font-mono font-semibold ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  ${data.close?.toFixed(4)}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="border-t border-border/30 pt-2 mt-2">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Change:</span>
+              <div className="text-right">
+                <div className={`font-mono text-sm font-semibold ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {change >= 0 ? '+' : ''}${change.toFixed(4)}
+                </div>
+                <div className={`font-mono text-xs ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%)
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Volume:</span>
+            <span className="font-mono text-foreground">{(data.volume / 1000000).toFixed(2)}M</span>
+          </div>
+          
+          {data.rsi && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">RSI:</span>
+              <span className={`font-mono ${data.rsi > 70 ? 'text-red-500' : data.rsi < 30 ? 'text-green-500' : 'text-foreground'}`}>
+                {data.rsi.toFixed(1)}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 export const CandlestickChart: React.FC<CandlestickChartProps> = ({ 
   data, 
   activeIndicators, 
   selectedTool,
   onToolClick 
 }) => {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const candlestickSeriesRef = useRef<any>(null);
-  const volumeSeriesRef = useRef<any>(null);
-  const sma20SeriesRef = useRef<any>(null);
-  const sma50SeriesRef = useRef<any>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!chartContainerRef.current) return;
-
-    // Create the chart
-    const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
-      layout: {
-        background: { color: 'transparent' },
-        textColor: '#9ca3af',
-        fontSize: 12,
-        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      },
-      grid: {
-        vertLines: { color: '#374151', style: 1 },
-        horzLines: { color: '#374151', style: 1 },
-      },
-      rightPriceScale: {
-        borderColor: '#4b5563',
-        visible: true,
-        scaleMargins: {
-          top: 0.1,
-          bottom: 0.2,
-        },
-      },
-      leftPriceScale: {
-        visible: false,
-      },
-      timeScale: {
-        borderColor: '#4b5563',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      crosshair: {
-        mode: 1,
-        vertLine: {
-          color: '#6b7280',
-          width: 1,
-          style: 3,
-        },
-        horzLine: {
-          color: '#6b7280',
-          width: 1,
-          style: 3,
-        },
-      },
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: true,
-      },
-      handleScale: {
-        axisPressedMouseMove: {
-          time: true,
-          price: true,
-        },
-        axisDoubleClickReset: {
-          time: true,
-          price: true,
-        },
-        mouseWheel: true,
-        pinch: true,
-      },
-    });
-
-    chartRef.current = chart;
-
-    // Create candlestick series
-    const candlestickSeries = (chart as any).addCandlestickSeries({
-      upColor: '#22c55e',
-      downColor: '#ef4444',
-      borderUpColor: '#22c55e',
-      borderDownColor: '#ef4444',
-      wickUpColor: '#22c55e',
-      wickDownColor: '#ef4444',
-      priceFormat: {
-        type: 'price',
-        precision: 4,
-        minMove: 0.0001,
-      },
-    });
-
-    candlestickSeriesRef.current = candlestickSeries;
-
-    // Create volume series
-    const volumeSeries = (chart as any).addHistogramSeries({
-      color: '#6b7280',
-      priceFormat: {
-        type: 'volume',
-      },
-      priceScaleId: '',
-      scaleMargins: {
-        top: 0.8,
-        bottom: 0,
-      },
-    });
-
-    volumeSeriesRef.current = volumeSeries;
-
-    // Handle tool clicks
-    if (selectedTool && selectedTool !== 'cursor') {
-      chart.subscribeClick((param) => {
-        if (param.time && onToolClick) {
-          const price = param.seriesData?.get(candlestickSeries) as any;
-          onToolClick(selectedTool, {
-            time: param.time,
-            price: price?.close || param.point?.y,
-            logical: param.logical,
-            point: param.point
-          });
-        }
-      });
-    }
-
-    // Resize observer
-    const resizeObserver = new ResizeObserver(() => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
+  // Handle chart clicks for tools
+  const handleChartClick = (event: any) => {
+    if (selectedTool && selectedTool !== 'cursor' && onToolClick) {
+      const chartData = event?.activePayload?.[0]?.payload;
+      if (chartData) {
+        onToolClick(selectedTool, {
+          time: chartData.time,
+          price: chartData.close,
+          data: chartData
         });
       }
-    });
-
-    resizeObserver.observe(chartContainerRef.current);
-
-    return () => {
-      resizeObserver.disconnect();
-      chart.remove();
-    };
-  }, [selectedTool, onToolClick]);
-
-  // Update data
-  useEffect(() => {
-    if (!chartRef.current || !candlestickSeriesRef.current || !volumeSeriesRef.current) return;
-    if (data.length === 0) return;
-
-    // Convert data to lightweight-charts format
-    const candlestickData: CandlestickData[] = data.map((item) => ({
-      time: Math.floor(new Date(item.time).getTime() / 1000) as any,
-      open: item.open,
-      high: item.high,
-      low: item.low,
-      close: item.close,
-    }));
-
-    const volumeData = data.map((item) => ({
-      time: Math.floor(new Date(item.time).getTime() / 1000) as any,
-      value: item.volume,
-      color: item.close >= item.open ? '#22c55e33' : '#ef444433',
-    }));
-
-    candlestickSeriesRef.current.setData(candlestickData);
-    volumeSeriesRef.current.setData(volumeData);
-  }, [data]);
-
-  // Update indicators
-  useEffect(() => {
-    if (!chartRef.current) return;
-
-    // Remove existing indicator series
-    if (sma20SeriesRef.current) {
-      chartRef.current.removeSeries(sma20SeriesRef.current);
-      sma20SeriesRef.current = null;
     }
-    if (sma50SeriesRef.current) {
-      chartRef.current.removeSeries(sma50SeriesRef.current);
-      sma50SeriesRef.current = null;
-    }
+  };
 
-    // Add SMA20 if active
-    if (activeIndicators.includes('SMA20')) {
-      const sma20Series = (chartRef.current as any).addLineSeries({
-        color: '#22c55e',
-        lineWidth: 2,
-        lineStyle: 2, // dashed
-        crosshairMarkerVisible: false,
-        lastValueVisible: false,
-        priceLineVisible: false,
-      });
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-background/50 rounded-lg border border-border/50">
+        <div className="text-center text-muted-foreground">
+          <div className="text-sm">Loading chart data...</div>
+        </div>
+      </div>
+    );
+  }
 
-      const sma20Data: LineData[] = data
-        .filter(item => item.sma20 !== undefined)
-        .map(item => ({
-          time: Math.floor(new Date(item.time).getTime() / 1000) as any,
-          value: item.sma20!,
-        }));
-
-      sma20Series.setData(sma20Data);
-      sma20SeriesRef.current = sma20Series;
-    }
-
-    // Add SMA50 if active
-    if (activeIndicators.includes('SMA50')) {
-      const sma50Series = (chartRef.current as any).addLineSeries({
-        color: '#f59e0b',
-        lineWidth: 2,
-        lineStyle: 2, // dashed
-        crosshairMarkerVisible: false,
-        lastValueVisible: false,
-        priceLineVisible: false,
-      });
-
-      const sma50Data: LineData[] = data
-        .filter(item => item.sma50 !== undefined)
-        .map(item => ({
-          time: Math.floor(new Date(item.time).getTime() / 1000) as any,
-          value: item.sma50!,
-        }));
-
-      sma50Series.setData(sma50Data);
-      sma50SeriesRef.current = sma50Series;
-    }
-  }, [activeIndicators, data]);
+  // Calculate proper Y-axis domain
+  const prices = data.flatMap(d => [d.high, d.low]);
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const padding = (maxPrice - minPrice) * 0.05;
+  const domain = [minPrice - padding, maxPrice + padding];
 
   return (
     <div 
-      ref={chartContainerRef} 
-      className="w-full h-full bg-background relative"
-      style={{ minHeight: '400px' }}
-    />
+      ref={chartRef}
+      className="w-full h-full bg-background/50 rounded-lg border border-border/50 p-2"
+      onClick={handleChartClick}
+      style={{ cursor: selectedTool !== 'cursor' ? 'crosshair' : 'default' }}
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart 
+          data={data} 
+          margin={{ top: 20, right: 80, left: 20, bottom: 20 }}
+        >
+          <CartesianGrid 
+            strokeDasharray="1 1" 
+            stroke="hsl(var(--border))" 
+            opacity={0.3}
+            horizontal={true}
+            vertical={false}
+          />
+          
+          {/* Time axis */}
+          <XAxis 
+            dataKey="time" 
+            stroke="hsl(var(--muted-foreground))"
+            fontSize={11}
+            tick={{ fontSize: 10 }}
+            tickFormatter={(value) => {
+              const date = new Date(value);
+              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }}
+            interval="preserveStartEnd"
+            axisLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
+            tickLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
+          />
+          
+          {/* Price axis */}
+          <YAxis 
+            yAxisId="price"
+            stroke="hsl(var(--muted-foreground))"
+            fontSize={11}
+            tick={{ fontSize: 10 }}
+            domain={domain}
+            tickFormatter={(value) => `$${value.toFixed(2)}`}
+            width={70}
+            orientation="right"
+            axisLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
+            tickLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
+          />
+          
+          {/* Volume axis */}
+          <YAxis 
+            yAxisId="volume"
+            orientation="left"
+            stroke="hsl(var(--muted-foreground))"
+            fontSize={10}
+            tick={{ fontSize: 9 }}
+            tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
+            width={50}
+            domain={[0, 'dataMax']}
+            axisLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
+            tickLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
+          />
+          
+          <Tooltip content={<ProfessionalTooltip />} />
+          
+          {/* Volume bars */}
+          <Bar 
+            dataKey="volume" 
+            yAxisId="volume"
+            opacity={0.3}
+          >
+            {data.map((entry, index) => (
+              <Cell 
+                key={`volume-${index}`} 
+                fill={entry.close >= entry.open ? '#22c55e' : '#ef4444'} 
+              />
+            ))}
+          </Bar>
+          
+          {/* Moving averages */}
+          {activeIndicators.includes('SMA20') && (
+            <Line 
+              type="monotone" 
+              dataKey="sma20" 
+              stroke="#22c55e" 
+              strokeWidth={2}
+              strokeDasharray="3 3"
+              dot={false}
+              connectNulls={false}
+              yAxisId="price"
+            />
+          )}
+          
+          {activeIndicators.includes('SMA50') && (
+            <Line 
+              type="monotone" 
+              dataKey="sma50" 
+              stroke="#f59e0b" 
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={false}
+              connectNulls={false}
+              yAxisId="price"
+            />
+          )}
+
+          {/* Candlesticks */}
+          <Bar 
+            dataKey="high"
+            fill="transparent"
+            shape={(props: any) => <ProfessionalCandlestick {...props} />}
+            yAxisId="price"
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
   );
 };
