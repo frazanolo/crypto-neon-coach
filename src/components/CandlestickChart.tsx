@@ -1,5 +1,5 @@
-import React from 'react';
-import { ResponsiveContainer, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, Bar } from 'recharts';
+import React, { useEffect, useRef } from 'react';
+import { createChart, IChartApi, ISeriesApi, CandlestickData, LineData, PriceLineOptions } from 'lightweight-charts';
 
 interface CandleData {
   time: string;
@@ -16,192 +16,244 @@ interface CandleData {
 interface CandlestickChartProps {
   data: CandleData[];
   activeIndicators: string[];
+  selectedTool?: string;
+  onToolClick?: (tool: string, data: any) => void;
 }
 
-// Custom Candlestick component
-const Candlestick = (props: any) => {
-  const { payload, x, y, width, height } = props;
-  
-  if (!payload) return null;
-  
-  const { open, high, low, close } = payload;
-  const isPositive = close >= open;
-  const color = isPositive ? '#10b981' : '#ef4444';
-  const bodyHeight = Math.abs(close - open);
-  const bodyY = Math.min(open, close);
-  
-  // Calculate scaled positions
-  const candleWidth = Math.max(2, width * 0.6);
-  const candleX = x + (width - candleWidth) / 2;
-  
+export const CandlestickChart: React.FC<CandlestickChartProps> = ({ 
+  data, 
+  activeIndicators, 
+  selectedTool,
+  onToolClick 
+}) => {
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const candlestickSeriesRef = useRef<any>(null);
+  const volumeSeriesRef = useRef<any>(null);
+  const sma20SeriesRef = useRef<any>(null);
+  const sma50SeriesRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
+
+    // Create the chart
+    const chart = createChart(chartContainerRef.current, {
+      width: chartContainerRef.current.clientWidth,
+      height: chartContainerRef.current.clientHeight,
+      layout: {
+        background: { color: 'transparent' },
+        textColor: '#9ca3af',
+        fontSize: 12,
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      },
+      grid: {
+        vertLines: { color: '#374151', style: 1 },
+        horzLines: { color: '#374151', style: 1 },
+      },
+      rightPriceScale: {
+        borderColor: '#4b5563',
+        visible: true,
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.2,
+        },
+      },
+      leftPriceScale: {
+        visible: false,
+      },
+      timeScale: {
+        borderColor: '#4b5563',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      crosshair: {
+        mode: 1,
+        vertLine: {
+          color: '#6b7280',
+          width: 1,
+          style: 3,
+        },
+        horzLine: {
+          color: '#6b7280',
+          width: 1,
+          style: 3,
+        },
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
+      handleScale: {
+        axisPressedMouseMove: {
+          time: true,
+          price: true,
+        },
+        axisDoubleClickReset: {
+          time: true,
+          price: true,
+        },
+        mouseWheel: true,
+        pinch: true,
+      },
+    });
+
+    chartRef.current = chart;
+
+    // Create candlestick series
+    const candlestickSeries = (chart as any).addCandlestickSeries({
+      upColor: '#22c55e',
+      downColor: '#ef4444',
+      borderUpColor: '#22c55e',
+      borderDownColor: '#ef4444',
+      wickUpColor: '#22c55e',
+      wickDownColor: '#ef4444',
+      priceFormat: {
+        type: 'price',
+        precision: 4,
+        minMove: 0.0001,
+      },
+    });
+
+    candlestickSeriesRef.current = candlestickSeries;
+
+    // Create volume series
+    const volumeSeries = (chart as any).addHistogramSeries({
+      color: '#6b7280',
+      priceFormat: {
+        type: 'volume',
+      },
+      priceScaleId: '',
+      scaleMargins: {
+        top: 0.8,
+        bottom: 0,
+      },
+    });
+
+    volumeSeriesRef.current = volumeSeries;
+
+    // Handle tool clicks
+    if (selectedTool && selectedTool !== 'cursor') {
+      chart.subscribeClick((param) => {
+        if (param.time && onToolClick) {
+          const price = param.seriesData?.get(candlestickSeries) as any;
+          onToolClick(selectedTool, {
+            time: param.time,
+            price: price?.close || param.point?.y,
+            logical: param.logical,
+            point: param.point
+          });
+        }
+      });
+    }
+
+    // Resize observer
+    const resizeObserver = new ResizeObserver(() => {
+      if (chartContainerRef.current) {
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+        });
+      }
+    });
+
+    resizeObserver.observe(chartContainerRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+      chart.remove();
+    };
+  }, [selectedTool, onToolClick]);
+
+  // Update data
+  useEffect(() => {
+    if (!chartRef.current || !candlestickSeriesRef.current || !volumeSeriesRef.current) return;
+    if (data.length === 0) return;
+
+    // Convert data to lightweight-charts format
+    const candlestickData: CandlestickData[] = data.map((item) => ({
+      time: Math.floor(new Date(item.time).getTime() / 1000) as any,
+      open: item.open,
+      high: item.high,
+      low: item.low,
+      close: item.close,
+    }));
+
+    const volumeData = data.map((item) => ({
+      time: Math.floor(new Date(item.time).getTime() / 1000) as any,
+      value: item.volume,
+      color: item.close >= item.open ? '#22c55e33' : '#ef444433',
+    }));
+
+    candlestickSeriesRef.current.setData(candlestickData);
+    volumeSeriesRef.current.setData(volumeData);
+  }, [data]);
+
+  // Update indicators
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    // Remove existing indicator series
+    if (sma20SeriesRef.current) {
+      chartRef.current.removeSeries(sma20SeriesRef.current);
+      sma20SeriesRef.current = null;
+    }
+    if (sma50SeriesRef.current) {
+      chartRef.current.removeSeries(sma50SeriesRef.current);
+      sma50SeriesRef.current = null;
+    }
+
+    // Add SMA20 if active
+    if (activeIndicators.includes('SMA20')) {
+      const sma20Series = (chartRef.current as any).addLineSeries({
+        color: '#22c55e',
+        lineWidth: 2,
+        lineStyle: 2, // dashed
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+
+      const sma20Data: LineData[] = data
+        .filter(item => item.sma20 !== undefined)
+        .map(item => ({
+          time: Math.floor(new Date(item.time).getTime() / 1000) as any,
+          value: item.sma20!,
+        }));
+
+      sma20Series.setData(sma20Data);
+      sma20SeriesRef.current = sma20Series;
+    }
+
+    // Add SMA50 if active
+    if (activeIndicators.includes('SMA50')) {
+      const sma50Series = (chartRef.current as any).addLineSeries({
+        color: '#f59e0b',
+        lineWidth: 2,
+        lineStyle: 2, // dashed
+        crosshairMarkerVisible: false,
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+
+      const sma50Data: LineData[] = data
+        .filter(item => item.sma50 !== undefined)
+        .map(item => ({
+          time: Math.floor(new Date(item.time).getTime() / 1000) as any,
+          value: item.sma50!,
+        }));
+
+      sma50Series.setData(sma50Data);
+      sma50SeriesRef.current = sma50Series;
+    }
+  }, [activeIndicators, data]);
+
   return (
-    <g>
-      {/* Wick (high-low line) */}
-      <line
-        x1={x + width / 2}
-        y1={y}
-        x2={x + width / 2}
-        y2={y + height}
-        stroke={color}
-        strokeWidth={1}
-      />
-      
-      {/* Body (open-close rectangle) */}
-      <rect
-        x={candleX}
-        y={y + (height * (1 - (bodyY + bodyHeight - low) / (high - low)))}
-        width={candleWidth}
-        height={Math.max(1, height * (bodyHeight / (high - low)))}
-        fill={isPositive ? color : color}
-        fillOpacity={isPositive ? 0.8 : 1}
-        stroke={color}
-        strokeWidth={1}
-      />
-    </g>
-  );
-};
-
-// Custom tooltip for candlestick chart
-const CandlestickTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    const change = data.close - data.open;
-    const changePercent = ((change / data.open) * 100);
-    
-    return (
-      <div className="bg-card/95 backdrop-blur-sm border border-border/50 rounded-lg p-3 shadow-lg min-w-[200px]">
-        <p className="text-sm font-medium mb-2 border-b border-border/30 pb-2">
-          {new Date(label).toLocaleDateString()} {new Date(label).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
-        <div className="space-y-1 text-xs">
-          <div className="flex justify-between gap-4">
-            <span>Open:</span>
-            <span className="font-mono">${data.open?.toFixed(4)}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span>High:</span>
-            <span className="font-mono text-green-500">${data.high?.toFixed(4)}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span>Low:</span>
-            <span className="font-mono text-red-500">${data.low?.toFixed(4)}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span>Close:</span>
-            <span className={`font-mono font-semibold ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              ${data.close?.toFixed(4)}
-            </span>
-          </div>
-          <div className="flex justify-between gap-4 border-t border-border/30 pt-1">
-            <span>Change:</span>
-            <span className={`font-mono text-xs ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {change >= 0 ? '+' : ''}${change.toFixed(4)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%)
-            </span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span>Volume:</span>
-            <span className="font-mono">{(data.volume / 1000).toFixed(0)}K</span>
-          </div>
-          {data.rsi && (
-            <div className="flex justify-between gap-4">
-              <span>RSI:</span>
-              <span className="font-mono">{data.rsi.toFixed(1)}</span>
-            </div>
-          )}
-          {data.sma20 && (
-            <div className="flex justify-between gap-4">
-              <span>SMA20:</span>
-              <span className="font-mono text-green-600">${data.sma20.toFixed(4)}</span>
-            </div>
-          )}
-          {data.sma50 && (
-            <div className="flex justify-between gap-4">
-              <span>SMA50:</span>
-              <span className="font-mono text-orange-600">${data.sma50.toFixed(4)}</span>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
-
-export const CandlestickChart: React.FC<CandlestickChartProps> = ({ data, activeIndicators }) => {
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
-        <XAxis 
-          dataKey="time" 
-          stroke="#9ca3af"
-          fontSize={11}
-          tickFormatter={(value) => {
-            const date = new Date(value);
-            return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-          }}
-          interval="preserveStartEnd"
-        />
-        <YAxis 
-          yAxisId="price"
-          stroke="#9ca3af"
-          fontSize={11}
-          domain={['dataMin * 0.995', 'dataMax * 1.005']}
-          tickFormatter={(value) => `$${value.toFixed(4)}`}
-          width={80}
-        />
-        <YAxis 
-          yAxisId="volume"
-          orientation="right"
-          stroke="#6b7280"
-          fontSize={11}
-          tickFormatter={(value) => `${(value / 1000).toFixed(0)}K`}
-          width={60}
-        />
-        <Tooltip content={<CandlestickTooltip />} />
-        
-        {/* Volume bars at the bottom */}
-        <Bar 
-          dataKey="volume" 
-          fill="#6b7280" 
-          opacity={0.2}
-          yAxisId="volume"
-        />
-        
-        {/* Moving averages */}
-        {activeIndicators.includes('SMA20') && (
-          <Line 
-            type="monotone" 
-            dataKey="sma20" 
-            stroke="#10b981" 
-            strokeWidth={1.5}
-            strokeDasharray="3 3"
-            dot={false}
-            connectNulls={false}
-            yAxisId="price"
-          />
-        )}
-        {activeIndicators.includes('SMA50') && (
-          <Line 
-            type="monotone" 
-            dataKey="sma50" 
-            stroke="#f59e0b" 
-            strokeWidth={1.5}
-            strokeDasharray="5 5"
-            dot={false}
-            connectNulls={false}
-            yAxisId="price"
-          />
-        )}
-
-        {/* Custom candlesticks rendered as bars with custom shape */}
-        <Bar 
-          dataKey="high"
-          fill="transparent"
-          shape={(props: any) => <Candlestick {...props} />}
-          yAxisId="price"
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
+    <div 
+      ref={chartContainerRef} 
+      className="w-full h-full bg-background relative"
+      style={{ minHeight: '400px' }}
+    />
   );
 };

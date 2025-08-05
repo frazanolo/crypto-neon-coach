@@ -316,6 +316,14 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
     });
   };
 
+  // Handle tool clicks on chart
+  const handleToolClick = (tool: string, data: any) => {
+    toast({
+      title: `${tool} Tool Used`,
+      description: `Applied at price: $${data.price?.toFixed(4) || 'N/A'}`,
+    });
+  };
+
   // Generate AI-driven technical analysis
   const generateAnalysis = (tool: TradingTool) => {
     const currentData = chartData[chartData.length - 1];
@@ -516,77 +524,14 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
               <CandlestickChart 
                 data={chartData} 
                 activeIndicators={activeIndicators}
+                selectedTool={selectedTool}
+                onToolClick={handleToolClick}
               />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Analysis Results Panel - Initially Empty */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {analysisResults.length === 0 ? (
-          <>
-            <Card className="bg-card/30 border-dashed border-2 border-border/50">
-              <CardContent className="p-6 text-center">
-                <div className="text-muted-foreground">
-                  <BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Technical Analysis</p>
-                  <p className="text-xs">Use tools above to generate insights</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/30 border-dashed border-2 border-border/50">
-              <CardContent className="p-6 text-center">
-                <div className="text-muted-foreground">
-                  <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Pattern Recognition</p>
-                  <p className="text-xs">Select pattern tools for analysis</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-card/30 border-dashed border-2 border-border/50">
-              <CardContent className="p-6 text-center">
-                <div className="text-muted-foreground">
-                  <Percent className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Fibonacci Levels</p>
-                  <p className="text-xs">Use Fibonacci tools for levels</p>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        ) : (
-          analysisResults.map((result, index) => (
-            <Card key={index} className="bg-card/50 backdrop-blur-sm border border-border/50">
-              <CardContent className="p-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="text-xs">
-                      {result.toolUsed}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      {result.timestamp.toLocaleTimeString()}
-                    </span>
-                  </div>
-                  
-                  <p className="text-sm text-foreground/90">
-                    {result.analysis}
-                  </p>
-                  
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-medium text-muted-foreground">Key Signals:</h4>
-                    {result.signals.map((signal, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs">
-                        <div className="w-1 h-1 bg-primary rounded-full" />
-                        <span>{signal}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
 
     </div>
   );
