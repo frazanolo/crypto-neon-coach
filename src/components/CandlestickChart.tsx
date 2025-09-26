@@ -21,43 +21,51 @@ interface CandlestickChartProps {
   onToolClick?: (tool: string, data: any) => void;
 }
 
-// Professional Candlestick component with proper styling
+// Enhanced Professional Candlestick component
 const ProfessionalCandlestick = (props: any) => {
   const { payload, x, y, width, height } = props;
   
-  if (!payload) return null;
+  if (!payload || !payload.open || !payload.high || !payload.low || !payload.close) return null;
   
   const { open, high, low, close } = payload;
   const isPositive = close >= open;
-  const color = isPositive ? '#22c55e' : '#ef4444';
+  const candleColor = isPositive ? '#22c55e' : '#ef4444';
   
-  // Calculate proper scaling
-  const priceRange = high - low;
-  const bodyHeight = Math.abs(close - open);
-  const bodyTop = Math.max(open, close);
-  const bodyBottom = Math.min(open, close);
-  
-  // Scale to chart dimensions
-  const wickTop = y + ((high - bodyTop) / priceRange) * height;
-  const wickBottom = y + ((high - bodyBottom) / priceRange) * height;
-  const bodyY = y + ((high - bodyTop) / priceRange) * height;
-  const bodyHeightPx = (bodyHeight / priceRange) * height;
-  
-  const candleWidth = Math.max(2, width * 0.8);
+  // Ensure proper scaling with adequate space
+  const wickWidth = 1;
+  const candleWidth = Math.max(3, width * 0.7);
   const candleX = x + (width - candleWidth) / 2;
   const wickX = x + width / 2;
   
+  // Calculate heights with proper scaling
+  const bodyTop = Math.max(open, close);
+  const bodyBottom = Math.min(open, close);
+  const bodyHeight = Math.abs(close - open);
+  
+  // Scale to chart coordinate system
+  const priceRange = high - low;
+  if (priceRange === 0) return null;
+  
+  const scale = height / priceRange;
+  const baseY = y + height;
+  
+  const highY = baseY - ((high - low) * scale);
+  const lowY = baseY;
+  const bodyTopY = baseY - ((bodyTop - low) * scale);
+  const bodyBottomY = baseY - ((bodyBottom - low) * scale);
+  const bodyHeightPx = Math.max(1, Math.abs(bodyTopY - bodyBottomY));
+
   return (
     <g>
       {/* Upper wick */}
       {high > bodyTop && (
         <line
           x1={wickX}
-          y1={wickTop}
+          y1={highY}
           x2={wickX}
-          y2={bodyY}
-          stroke={color}
-          strokeWidth={1}
+          y2={bodyTopY}
+          stroke={candleColor}
+          strokeWidth={wickWidth}
         />
       )}
       
@@ -65,30 +73,30 @@ const ProfessionalCandlestick = (props: any) => {
       {low < bodyBottom && (
         <line
           x1={wickX}
-          y1={wickBottom}
+          y1={bodyBottomY}
           x2={wickX}
-          y2={bodyY + bodyHeightPx}
-          stroke={color}
-          strokeWidth={1}
+          y2={lowY}
+          stroke={candleColor}
+          strokeWidth={wickWidth}
         />
       )}
       
       {/* Body */}
       <rect
         x={candleX}
-        y={bodyY}
+        y={Math.min(bodyTopY, bodyBottomY)}
         width={candleWidth}
-        height={Math.max(1, bodyHeightPx)}
-        fill={isPositive ? color : color}
-        fillOpacity={isPositive ? 0.9 : 1}
-        stroke={color}
+        height={bodyHeightPx}
+        fill={isPositive ? candleColor : candleColor}
+        fillOpacity={isPositive ? 0.8 : 1}
+        stroke={candleColor}
         strokeWidth={0.5}
       />
     </g>
   );
 };
 
-// Professional tooltip
+// Enhanced Professional tooltip with better formatting
 const ProfessionalTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -96,31 +104,26 @@ const ProfessionalTooltip = ({ active, payload, label }: any) => {
     const changePercent = ((change / data.open) * 100);
     
     return (
-      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-xl min-w-[220px]">
-        <p className="text-sm font-semibold mb-2 text-foreground border-b border-border/30 pb-2">
-          {new Date(data.time).toLocaleDateString('en-US', { 
-            weekday: 'short',
-            month: 'short', 
-            day: 'numeric',
-            year: 'numeric'
-          })}
+      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-4 shadow-xl min-w-[240px]">
+        <p className="text-sm font-semibold mb-3 text-foreground border-b border-border/30 pb-2">
+          {label}
         </p>
-        <div className="space-y-1.5 text-xs">
+        <div className="space-y-2 text-xs">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Open:</span>
-                <span className="font-mono text-foreground">${data.open?.toFixed(4)}</span>
+                <span className="font-mono text-foreground font-medium">${data.open?.toFixed(4)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">High:</span>
-                <span className="font-mono text-green-500">${data.high?.toFixed(4)}</span>
+                <span className="font-mono text-green-500 font-medium">${data.high?.toFixed(4)}</span>
               </div>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Low:</span>
-                <span className="font-mono text-red-500">${data.low?.toFixed(4)}</span>
+                <span className="font-mono text-red-500 font-medium">${data.low?.toFixed(4)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Close:</span>
@@ -131,11 +134,11 @@ const ProfessionalTooltip = ({ active, payload, label }: any) => {
             </div>
           </div>
           
-          <div className="border-t border-border/30 pt-2 mt-2">
+          <div className="border-t border-border/30 pt-2 mt-3">
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Change:</span>
               <div className="text-right">
-                <div className={`font-mono text-sm font-semibold ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                <div className={`font-mono text-sm font-bold ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   {change >= 0 ? '+' : ''}${change.toFixed(4)}
                 </div>
                 <div className={`font-mono text-xs ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -145,15 +148,19 @@ const ProfessionalTooltip = ({ active, payload, label }: any) => {
             </div>
           </div>
           
-          <div className="flex justify-between">
+          <div className="flex justify-between border-t border-border/30 pt-2">
             <span className="text-muted-foreground">Volume:</span>
-            <span className="font-mono text-foreground">{(data.volume / 1000000).toFixed(2)}M</span>
+            <span className="font-mono text-foreground font-medium">
+              {(data.volume / 1000000).toFixed(2)}M
+            </span>
           </div>
           
           {data.rsi && (
             <div className="flex justify-between">
               <span className="text-muted-foreground">RSI:</span>
-              <span className={`font-mono ${data.rsi > 70 ? 'text-red-500' : data.rsi < 30 ? 'text-green-500' : 'text-foreground'}`}>
+              <span className={`font-mono font-medium ${
+                data.rsi > 70 ? 'text-red-500' : data.rsi < 30 ? 'text-green-500' : 'text-foreground'
+              }`}>
                 {data.rsi.toFixed(1)}
               </span>
             </div>
@@ -206,39 +213,52 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
     }
   };
 
+  // Clear tools when tool changes
+  useEffect(() => {
+    if (selectedTool === 'cursor') {
+      setHorizontalLines([]);
+      setTrendLines([]);
+      setPendingPoint(null);
+    }
+  }, [selectedTool]);
+
   if (!data || data.length === 0) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-background/50 rounded-lg border border-border/50">
         <div className="text-center text-muted-foreground">
           <div className="text-sm">Loading chart data...</div>
+          <div className="text-xs mt-1">Please wait while we fetch real-time market data</div>
         </div>
       </div>
     );
   }
 
-  // Calculate proper Y-axis domain
+  // Calculate proper Y-axis domain with padding for better visibility
   const prices = data.flatMap(d => [d.high, d.low]);
-  const minPrice = Math.min(...prices);
-  const maxPrice = Math.max(...prices);
-  const padding = (maxPrice - minPrice) * 0.05;
-  const domain = [minPrice - padding, maxPrice + padding];
+  const indicators = data.flatMap(d => [d.sma20, d.sma50].filter(Boolean) as number[]);
+  const allPrices = [...prices, ...indicators];
+  
+  const minPrice = Math.min(...allPrices);
+  const maxPrice = Math.max(...allPrices);
+  const padding = (maxPrice - minPrice) * 0.1; // 10% padding
+  const domain = [Math.max(0, minPrice - padding), maxPrice + padding];
 
   return (
     <div 
       ref={chartRef}
-      className="w-full h-full bg-background/50 rounded-lg border border-border/50 p-2"
+      className="w-full h-full bg-background/50 rounded-lg border border-border/50 p-3"
       style={{ cursor: selectedTool !== 'cursor' ? 'crosshair' : 'default' }}
     >
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={400} minHeight={300}>
         <ComposedChart 
           data={data} 
-          margin={{ top: 20, right: 80, left: 20, bottom: 20 }}
+          margin={{ top: 20, right: 80, left: 20, bottom: 40 }}
           onClick={handleChartClick}
         >
           <CartesianGrid 
-            strokeDasharray="1 1" 
+            strokeDasharray="2 2" 
             stroke="hsl(var(--border))" 
-            opacity={0.3}
+            opacity={0.4}
             horizontal={true}
             vertical={false}
           />
@@ -248,10 +268,16 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
             dataKey="time" 
             stroke="hsl(var(--muted-foreground))"
             fontSize={11}
-            tick={{ fontSize: 10 }}
+            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
             tickFormatter={(value) => {
-              const date = new Date(value);
-              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              try {
+                return new Date(value).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric' 
+                });
+              } catch {
+                return value;
+              }
             }}
             interval="preserveStartEnd"
             axisLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
@@ -263,10 +289,10 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
             yAxisId="price"
             stroke="hsl(var(--muted-foreground))"
             fontSize={11}
-            tick={{ fontSize: 10 }}
+            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
             domain={domain}
             tickFormatter={(value) => `$${value.toFixed(2)}`}
-            width={70}
+            width={80}
             orientation="right"
             axisLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
             tickLine={{ stroke: 'hsl(var(--border))', strokeWidth: 1 }}
@@ -278,7 +304,7 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
             orientation="left"
             stroke="hsl(var(--muted-foreground))"
             fontSize={10}
-            tick={{ fontSize: 9 }}
+            tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
             tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
             width={50}
             domain={[0, 'dataMax']}
@@ -288,7 +314,7 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
           
           <Tooltip content={<ProfessionalTooltip />} />
           
-          {/* Horizontal lines (user drawn) */}
+          {/* User-drawn horizontal lines */}
           {horizontalLines.map((y, i) => (
             <ReferenceLine
               key={`h-${i}`}
@@ -296,7 +322,15 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
               yAxisId="price"
               stroke="hsl(var(--primary))"
               strokeDasharray="4 4"
+              strokeWidth={2}
               ifOverflow="extendDomain"
+              label={{ 
+                value: `$${y.toFixed(2)}`, 
+                position: 'right', 
+                fill: 'hsl(var(--primary))', 
+                fontSize: 11,
+                fontWeight: 'bold'
+              }}
             />
           ))}
 
@@ -306,17 +340,25 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
               key={`f-${i}`}
               y={lvl.price}
               yAxisId="price"
-              stroke="hsl(var(--muted-foreground))"
-              strokeDasharray="6 6"
+              stroke="hsl(var(--warning))"
+              strokeDasharray="6 3"
+              strokeWidth={1.5}
               ifOverflow="extendDomain"
-              label={{ value: lvl.label, position: 'right', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              label={{ 
+                value: `${lvl.label}: $${lvl.price.toFixed(2)}`, 
+                position: 'right', 
+                fill: 'hsl(var(--warning))', 
+                fontSize: 10,
+                fontWeight: 'medium'
+              }}
             />
           ))}
           
+          {/* Volume bars */}
           <Bar 
             dataKey="volume" 
             yAxisId="volume"
-            opacity={0.3}
+            opacity={0.4}
           >
             {data.map((entry, index) => (
               <Cell 
@@ -326,14 +368,14 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
             ))}
           </Bar>
           
-          {/* Moving averages */}
+          {/* Moving averages with improved visibility */}
           {activeIndicators.includes('SMA20') && (
             <Line 
               type="monotone" 
               dataKey="sma20" 
               stroke="#22c55e" 
-              strokeWidth={2}
-              strokeDasharray="3 3"
+              strokeWidth={2.5}
+              strokeDasharray="4 4"
               dot={false}
               connectNulls={false}
               yAxisId="price"
@@ -345,15 +387,15 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
               type="monotone" 
               dataKey="sma50" 
               stroke="#f59e0b" 
-              strokeWidth={2}
-              strokeDasharray="5 5"
+              strokeWidth={2.5}
+              strokeDasharray="6 4"
               dot={false}
               connectNulls={false}
               yAxisId="price"
             />
           )}
 
-          {/* Candlesticks */}
+          {/* Enhanced candlesticks */}
           <Bar 
             dataKey="high"
             fill="transparent"
@@ -362,6 +404,15 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
           />
         </ComposedChart>
       </ResponsiveContainer>
+      
+      {/* Tool status indicator */}
+      {selectedTool !== 'cursor' && (
+        <div className="absolute top-4 left-4 bg-primary/20 border border-primary/50 rounded px-2 py-1 text-xs text-primary font-medium">
+          {selectedTool === 'horizontal' && 'Click to add horizontal line'}
+          {selectedTool === 'trendline' && (pendingPoint ? 'Click second point' : 'Click first point')}
+          {selectedTool === 'fib-retracement' && 'Fibonacci levels active'}
+        </div>
+      )}
     </div>
   );
 };

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, X, Loader2 } from 'lucide-react';
+import { Plus, Search, X, Loader2, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { cryptoAPI, CryptoMarketData } from '@/lib/cryptoApi';
 
@@ -38,12 +39,49 @@ export const EnhancedAddAssetModal: React.FC<EnhancedAddAssetModalProps> = ({
   currency = 'usd'
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [quantity, setQuantity] = useState<string>('');
+  const [inputType, setInputType] = useState<'quantity' | 'fiat'>('fiat');
+  const [quantityInput, setQuantityInput] = useState<string>('');
+  const [fiatInput, setFiatInput] = useState<string>('');
   const [selectedCrypto, setSelectedCrypto] = useState<CryptoMarketData | null>(null);
   const [searchResults, setSearchResults] = useState<CryptoMarketData[]>([]);
   const [trendingCoins, setTrendingCoins] = useState<CryptoMarketData[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Currency symbols for display
+  const currencySymbols: { [key: string]: string } = {
+    usd: '$',
+    eur: '€',
+    gbp: '£',
+    jpy: '¥',
+    cad: 'C$',
+    aud: 'A$',
+    chf: 'CHF',
+    cny: '¥',
+    krw: '₩',
+    inr: '₹'
+  };
+
+  const currencySymbol = currencySymbols[currency.toLowerCase()] || '$';
+
+  // Auto-calculate based on input type
+  useEffect(() => {
+    if (!selectedCrypto) return;
+
+    if (inputType === 'fiat' && fiatInput) {
+      const fiatAmount = parseFloat(fiatInput);
+      if (!isNaN(fiatAmount) && selectedCrypto.current_price > 0) {
+        const calculatedQuantity = fiatAmount / selectedCrypto.current_price;
+        setQuantityInput(calculatedQuantity.toFixed(8));
+      }
+    } else if (inputType === 'quantity' && quantityInput) {
+      const quantity = parseFloat(quantityInput);
+      if (!isNaN(quantity) && selectedCrypto.current_price > 0) {
+        const calculatedFiat = quantity * selectedCrypto.current_price;
+        setFiatInput(calculatedFiat.toFixed(2));
+      }
+    }
+  }, [inputType, fiatInput, quantityInput, selectedCrypto]);
 
   // Load trending cryptocurrencies on mount
   useEffect(() => {
@@ -103,33 +141,40 @@ export const EnhancedAddAssetModal: React.FC<EnhancedAddAssetModalProps> = ({
   };
 
   const handleAddAsset = async () => {
-    if (!quantity || parseFloat(quantity) <= 0) {
-      toast.error('Please enter a valid quantity');
+    if (!selectedCrypto) {
+      toast.error('Please select a cryptocurrency');
       return;
     }
 
-    if (!selectedCrypto) {
-      toast.error('Please select a cryptocurrency');
+    const quantity = parseFloat(quantityInput);
+    if (!quantity || quantity <= 0) {
+      toast.error('Please enter a valid amount');
       return;
     }
 
     const newAssetData = {
       symbol: selectedCrypto.symbol.toUpperCase(),
       name: selectedCrypto.name,
-      quantity: parseFloat(quantity),
+      quantity: quantity,
       currentPrice: selectedCrypto.current_price,
     };
 
     onAddAsset(newAssetData);
     handleClose();
-    toast.success(`Added ${quantity} ${selectedCrypto.symbol.toUpperCase()} to your portfolio!`);
+    
+    const fiatValue = quantity * selectedCrypto.current_price;
+    toast.success(
+      `Added ${currencySymbol}${fiatValue.toLocaleString()} worth of ${selectedCrypto.symbol.toUpperCase()} (${quantity.toFixed(8)} tokens)`
+    );
   };
 
   const handleClose = () => {
     setSelectedCrypto(null);
-    setQuantity('');
+    setQuantityInput('');
+    setFiatInput('');
     setSearchTerm('');
     setSearchResults([]);
+    setInputType('fiat');
     onClose();
   };
 
@@ -235,40 +280,98 @@ export const EnhancedAddAssetModal: React.FC<EnhancedAddAssetModalProps> = ({
             </div>
           </div>
 
-          {/* Quantity Input */}
+          {/* Amount Input */}
           {selectedCrypto && (
-            <div className="space-y-2">
-              <Label htmlFor="quantity" className="text-foreground">Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                placeholder="0.00"
-                min="0"
-                step="any"
-                className="bg-muted/20 border-border/50"
-              />
+            <div className="space-y-4">
+              {/* Input Type Toggle */}
+              <Tabs value={inputType} onValueChange={(value) => setInputType(value as 'quantity' | 'fiat')}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="fiat">
+                    Amount ({currencySymbol})
+                  </TabsTrigger>
+                  <TabsTrigger value="quantity">
+                    Quantity (Tokens)
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="fiat" className="space-y-2">
+                  <Label htmlFor="fiat-input" className="text-foreground">
+                    Purchase Amount in {currency.toUpperCase()}
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+                      {currencySymbol}
+                    </span>
+                    <Input
+                      id="fiat-input"
+                      type="number"
+                      value={fiatInput}
+                      onChange={(e) => setFiatInput(e.target.value)}
+                      placeholder="100.00"
+                      min="0"
+                      step="any"
+                      className="pl-8 bg-muted/20 border-border/50"
+                    />
+                  </div>
+                  {quantityInput && (
+                    <p className="text-xs text-muted-foreground">
+                      = {parseFloat(quantityInput).toFixed(8)} {selectedCrypto.symbol.toUpperCase()}
+                    </p>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="quantity" className="space-y-2">
+                  <Label htmlFor="quantity-input" className="text-foreground">
+                    Token Quantity
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="quantity-input"
+                      type="number"
+                      value={quantityInput}
+                      onChange={(e) => setQuantityInput(e.target.value)}
+                      placeholder="0.00000000"
+                      min="0"
+                      step="any"
+                      className="pr-16 bg-muted/20 border-border/50"
+                    />
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground text-xs">
+                      {selectedCrypto.symbol.toUpperCase()}
+                    </span>
+                  </div>
+                  {fiatInput && (
+                    <p className="text-xs text-muted-foreground">
+                      = {currencySymbol}{parseFloat(fiatInput).toLocaleString()}
+                    </p>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 
-          {/* Preview */}
-          {selectedCrypto && quantity && parseFloat(quantity) > 0 && (
+          {/* Purchase Preview */}
+          {selectedCrypto && (quantityInput || fiatInput) && parseFloat(quantityInput) > 0 && (
             <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-              <p className="text-sm text-primary mb-2">Purchase Preview</p>
-              <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2 mb-3">
+                <Calculator className="w-4 h-4 text-primary" />
+                <p className="text-sm text-primary font-medium">Purchase Preview</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <p className="text-xs text-muted-foreground mb-1">You're buying</p>
                   <p className="font-medium text-foreground">
-                    {quantity} {selectedCrypto.symbol.toUpperCase()}
+                    {parseFloat(quantityInput).toFixed(8)} {selectedCrypto.symbol.toUpperCase()}
                   </p>
                   <p className="text-sm text-muted-foreground">{selectedCrypto.name}</p>
                 </div>
                 <div className="text-right">
+                  <p className="text-xs text-muted-foreground mb-1">Total cost</p>
                   <p className="font-medium text-foreground">
-                    {formatPrice(parseFloat(quantity) * selectedCrypto.current_price)}
+                    {formatPrice(parseFloat(quantityInput) * selectedCrypto.current_price)}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {formatPrice(selectedCrypto.current_price)} each
+                    {formatPrice(selectedCrypto.current_price)} per token
                   </p>
                 </div>
               </div>
@@ -286,7 +389,7 @@ export const EnhancedAddAssetModal: React.FC<EnhancedAddAssetModalProps> = ({
             </Button>
             <Button
               onClick={handleAddAsset}
-              disabled={!selectedCrypto || !quantity || parseFloat(quantity) <= 0}
+              disabled={!selectedCrypto || !quantityInput || parseFloat(quantityInput) <= 0}
               className="flex-1 gradient-primary hover-glow"
             >
               <Plus className="w-4 h-4 mr-2" />

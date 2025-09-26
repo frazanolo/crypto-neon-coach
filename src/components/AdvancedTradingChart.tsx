@@ -593,10 +593,14 @@ export const AdvancedTradingChart: React.FC<AdvancedTradingChartProps> = ({
                 data={chartData} 
                 activeIndicators={activeIndicators}
                 selectedTool={selectedTool}
+                fibLevels={fibLevels ? Object.entries(fibLevels.levels).map(([label, price]) => ({
+                  label,
+                  price: price as number
+                })) : undefined}
                 onToolClick={(tool, data) => {
                   toast({
-                    title: `${tool} Tool`,
-                    description: `Applied at $${data.price?.toFixed(4)}`,
+                    title: `${tool} Tool Applied`,
+                    description: `${tool === 'fib-retracement' ? 'Fibonacci levels' : 'Drawing tool'} added at $${data.price?.toFixed(4)}`,
                   });
                 }}
               />
