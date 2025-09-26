@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { ResponsiveContainer, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, Bar, Cell } from 'recharts';
+import React, { useEffect, useRef, useState } from 'react';
+import { ResponsiveContainer, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, Line, Bar, Cell, ReferenceLine } from 'recharts';
 
 interface CandleData {
   time: string;
@@ -17,6 +17,7 @@ interface CandlestickChartProps {
   data: CandleData[];
   activeIndicators: string[];
   selectedTool?: string;
+  fibLevels?: { label: string; price: number }[];
   onToolClick?: (tool: string, data: any) => void;
 }
 
@@ -168,21 +169,40 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
   data, 
   activeIndicators, 
   selectedTool,
+  fibLevels,
   onToolClick 
 }) => {
   const chartRef = useRef<HTMLDivElement>(null);
+  const [horizontalLines, setHorizontalLines] = useState<number[]>([]);
+  const [trendLines, setTrendLines] = useState<{ x1: number; y1: number; x2: number; y2: number }[]>([]);
+  const [pendingPoint, setPendingPoint] = useState<{ x: number; y: number } | null>(null);
 
-  // Handle chart clicks for tools
+  // Handle chart clicks for tools using Recharts event payload
   const handleChartClick = (event: any) => {
-    if (selectedTool && selectedTool !== 'cursor' && onToolClick) {
-      const chartData = event?.activePayload?.[0]?.payload;
-      if (chartData) {
-        onToolClick(selectedTool, {
-          time: chartData.time,
-          price: chartData.close,
-          data: chartData
-        });
+    const idx = event?.activeTooltipIndex;
+    const chartData = event?.activePayload?.[0]?.payload;
+    const price = chartData?.close;
+
+    if (idx == null || price == null) return;
+
+    if (selectedTool && selectedTool !== 'cursor') {
+      if (selectedTool === 'horizontal') {
+        setHorizontalLines(prev => [...prev, price]);
+      } else if (selectedTool === 'trendline') {
+        if (!pendingPoint) {
+          setPendingPoint({ x: idx, y: price });
+        } else {
+          setTrendLines(prev => [...prev, { x1: pendingPoint.x, y1: pendingPoint.y, x2: idx, y2: price }]);
+          setPendingPoint(null);
+        }
       }
+
+      onToolClick?.(selectedTool, {
+        index: idx,
+        time: chartData.time,
+        price,
+        data: chartData,
+      });
     }
   };
 
@@ -207,13 +227,13 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
     <div 
       ref={chartRef}
       className="w-full h-full bg-background/50 rounded-lg border border-border/50 p-2"
-      onClick={handleChartClick}
       style={{ cursor: selectedTool !== 'cursor' ? 'crosshair' : 'default' }}
     >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart 
           data={data} 
           margin={{ top: 20, right: 80, left: 20, bottom: 20 }}
+          onClick={handleChartClick}
         >
           <CartesianGrid 
             strokeDasharray="1 1" 
@@ -268,7 +288,31 @@ export const CandlestickChart: React.FC<CandlestickChartProps> = ({
           
           <Tooltip content={<ProfessionalTooltip />} />
           
-          {/* Volume bars */}
+          {/* Horizontal lines (user drawn) */}
+          {horizontalLines.map((y, i) => (
+            <ReferenceLine
+              key={`h-${i}`}
+              y={y}
+              yAxisId="price"
+              stroke="hsl(var(--primary))"
+              strokeDasharray="4 4"
+              ifOverflow="extendDomain"
+            />
+          ))}
+
+          {/* Fibonacci retracement levels */}
+          {fibLevels && fibLevels.map((lvl, i) => (
+            <ReferenceLine
+              key={`f-${i}`}
+              y={lvl.price}
+              yAxisId="price"
+              stroke="hsl(var(--muted-foreground))"
+              strokeDasharray="6 6"
+              ifOverflow="extendDomain"
+              label={{ value: lvl.label, position: 'right', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+            />
+          ))}
+          
           <Bar 
             dataKey="volume" 
             yAxisId="volume"
